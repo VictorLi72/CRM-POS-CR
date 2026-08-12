@@ -1,0 +1,105 @@
+-- Esquema de base de datos: CRM/POS para supermercado (Costa Rica)
+-- IVA: tarifas vigentes en CR: 13 (general), 4, 2, 1, 0 (exento/canasta básica)
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario TEXT NOT NULL UNIQUE,
+  contrasena_hash TEXT NOT NULL,
+  nombre_completo TEXT NOT NULL,
+  rol TEXT NOT NULL CHECK (rol IN ('administrador', 'supervisor', 'cajero')),
+  activo INTEGER NOT NULL DEFAULT 1,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS categorias (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS productos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo_barras TEXT UNIQUE,
+  nombre TEXT NOT NULL,
+  categoria_id INTEGER REFERENCES categorias(id) ON DELETE SET NULL,
+  precio_costo REAL NOT NULL DEFAULT 0,
+  precio_venta REAL NOT NULL DEFAULT 0,
+  tarifa_iva REAL NOT NULL DEFAULT 13,
+  codigo_cabys TEXT,
+  unidad_medida TEXT NOT NULL DEFAULT 'unidad',
+  existencia REAL NOT NULL DEFAULT 0,
+  existencia_minima REAL NOT NULL DEFAULT 5,
+  activo INTEGER NOT NULL DEFAULT 1,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  actualizado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos(nombre);
+
+CREATE TABLE IF NOT EXISTS clientes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  identificacion TEXT UNIQUE,
+  telefono TEXT,
+  correo TEXT,
+  direccion TEXT,
+  limite_credito REAL NOT NULL DEFAULT 0,
+  saldo_credito REAL NOT NULL DEFAULT 0,
+  puntos_lealtad INTEGER NOT NULL DEFAULT 0,
+  activo INTEGER NOT NULL DEFAULT 1,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ventas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  folio INTEGER NOT NULL UNIQUE,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
+  subtotal REAL NOT NULL,
+  descuento_total REAL NOT NULL DEFAULT 0,
+  iva_total REAL NOT NULL,
+  total REAL NOT NULL,
+  metodo_pago TEXT NOT NULL CHECK (metodo_pago IN ('efectivo', 'tarjeta', 'sinpe', 'fiado')),
+  monto_recibido REAL,
+  vuelto REAL,
+  estado TEXT NOT NULL DEFAULT 'completada' CHECK (estado IN ('completada', 'anulada')),
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ventas_creado_en ON ventas(creado_en);
+CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(cliente_id);
+
+CREATE TABLE IF NOT EXISTS detalle_ventas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  venta_id INTEGER NOT NULL REFERENCES ventas(id) ON DELETE CASCADE,
+  producto_id INTEGER NOT NULL REFERENCES productos(id),
+  producto_nombre TEXT NOT NULL,
+  cantidad REAL NOT NULL,
+  precio_unitario REAL NOT NULL,
+  tarifa_iva REAL NOT NULL,
+  descuento REAL NOT NULL DEFAULT 0,
+  subtotal REAL NOT NULL,
+  monto_iva REAL NOT NULL,
+  total REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_detalle_ventas_venta ON detalle_ventas(venta_id);
+CREATE INDEX IF NOT EXISTS idx_detalle_ventas_producto ON detalle_ventas(producto_id);
+
+CREATE TABLE IF NOT EXISTS movimientos_inventario (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  producto_id INTEGER NOT NULL REFERENCES productos(id),
+  tipo TEXT NOT NULL CHECK (tipo IN ('entrada', 'salida', 'ajuste', 'venta', 'anulacion')),
+  cantidad REAL NOT NULL,
+  referencia TEXT,
+  usuario_id INTEGER REFERENCES usuarios(id),
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS pagos_credito (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+  venta_id INTEGER REFERENCES ventas(id),
+  monto REAL NOT NULL,
+  usuario_id INTEGER REFERENCES usuarios(id),
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);

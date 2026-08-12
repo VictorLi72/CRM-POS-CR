@@ -1,0 +1,18 @@
+# Bases de datos locales (contienen datos de ventas/clientes reales del super)
+*.db
+*.db-wal
+*.db-shm
+
+# Dependencias (cada paquete ya tiene su propio .gitignore, esto es respaldo)
+node_modules/
+
+# Builds
+dist/
+release/
+
+# Variables de entorno con secretos
+.env
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
