@@ -1,6 +1,6 @@
 {
   "name": "crm-super-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "App de caja (POS/CRM) para supermercado - Electron + React",
   "main": "electron/main.js",
@@ -31,12 +31,16 @@
   "build": {
     "appId": "cr.super.crm",
     "productName": "CRM Super",
+    "directories": {
+      "output": "../release"
+    },
     "files": [
       "dist/**/*",
       "electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false
     }
   },
   "allowScripts": {

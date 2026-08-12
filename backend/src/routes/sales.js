@@ -183,6 +183,31 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
+// Buscar venta por número de folio (el que aparece impreso en el tiquete)
+router.get('/by-folio/:folio', (req, res) => {
+  const venta = db
+    .prepare(
+      `SELECT v.*, u.nombre_completo AS cajero_nombre, c.nombre AS cliente_nombre
+       FROM ventas v LEFT JOIN usuarios u ON u.id = v.usuario_id LEFT JOIN clientes c ON c.id = v.cliente_id
+       WHERE v.folio = ?`
+    )
+    .get(req.params.folio);
+  if (!venta) return res.status(404).json({ error: 'No existe una venta con ese folio' });
+  const items = db.prepare('SELECT * FROM detalle_ventas WHERE venta_id = ?').all(venta.id);
+  const devueltoPorItem = db
+    .prepare(
+      `SELECT detalle_venta_id, COALESCE(SUM(cantidad), 0) AS cantidad_devuelta
+       FROM devolucion_items WHERE detalle_venta_id IN (SELECT id FROM detalle_ventas WHERE venta_id = ?)
+       GROUP BY detalle_venta_id`
+    )
+    .all(venta.id);
+  const devueltoMap = Object.fromEntries(devueltoPorItem.map((d) => [d.detalle_venta_id, d.cantidad_devuelta]));
+  res.json({
+    ...venta,
+    items: items.map((it) => ({ ...it, cantidad_devuelta: devueltoMap[it.id] || 0 })),
+  });
+});
+
 router.get('/:id', (req, res) => {
   const venta = db
     .prepare(
@@ -224,6 +249,118 @@ router.post('/:id/cancel', requireRole('administrador', 'supervisor'), (req, res
   })();
 
   res.json(db.prepare('SELECT * FROM ventas WHERE id = ?').get(venta.id));
+});
+
+// Registrar devolución parcial o total de una venta (no anula la venta original)
+router.post('/:id/devolucion', requireRole('administrador', 'supervisor'), (req, res) => {
+  const { items, motivo } = req.body || {};
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'La devolución debe tener al menos un producto' });
+  }
+
+  const venta = db.prepare('SELECT * FROM ventas WHERE id = ?').get(req.params.id);
+  if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
+  if (venta.estado === 'anulada') {
+    return res.status(400).json({ error: 'No se puede devolver una venta anulada' });
+  }
+
+  try {
+    const idDevolucion = db.transaction(() => {
+      let total = 0;
+      const itemsPreparados = [];
+
+      for (const it of items) {
+        if (!it.cantidad || it.cantidad <= 0) continue;
+        const detalle = db
+          .prepare('SELECT * FROM detalle_ventas WHERE id = ? AND venta_id = ?')
+          .get(it.detalle_venta_id, venta.id);
+        if (!detalle) throw new Error(`El detalle ${it.detalle_venta_id} no pertenece a esta venta`);
+
+        const yaDevuelto = db
+          .prepare('SELECT COALESCE(SUM(cantidad), 0) AS total FROM devolucion_items WHERE detalle_venta_id = ?')
+          .get(detalle.id).total;
+        const disponibleParaDevolver = detalle.cantidad - yaDevuelto;
+        if (it.cantidad > disponibleParaDevolver + 1e-9) {
+          throw new Error(
+            `No se puede devolver ${it.cantidad} de "${detalle.producto_nombre}" (ya disponible para devolver: ${disponibleParaDevolver})`
+          );
+        }
+
+        // Monto proporcional al precio efectivo de la línea (incluye descuento e IVA ya aplicados)
+        const totalLinea = round2((detalle.total / detalle.cantidad) * it.cantidad);
+        total += totalLinea;
+
+        itemsPreparados.push({
+          detalle_venta_id: detalle.id,
+          producto_id: detalle.producto_id,
+          producto_nombre: detalle.producto_nombre,
+          cantidad: it.cantidad,
+          precio_unitario: detalle.precio_unitario,
+          total: totalLinea,
+        });
+      }
+
+      if (itemsPreparados.length === 0) {
+        throw new Error('No hay cantidades válidas para devolver');
+      }
+
+      total = round2(total);
+
+      const infoDevolucion = db
+        .prepare(
+          `INSERT INTO devoluciones (venta_id, usuario_id, motivo, total) VALUES (?, ?, ?, ?)`
+        )
+        .run(venta.id, req.user.id, motivo || null, total);
+      const devolucionId = infoDevolucion.lastInsertRowid;
+
+      const insertarItem = db.prepare(
+        `INSERT INTO devolucion_items (devolucion_id, detalle_venta_id, producto_id, producto_nombre, cantidad, precio_unitario, total)
+         VALUES (@devolucion_id, @detalle_venta_id, @producto_id, @producto_nombre, @cantidad, @precio_unitario, @total)`
+      );
+      const actualizarExistencia = db.prepare(
+        "UPDATE productos SET existencia = existencia + ?, actualizado_en = datetime('now') WHERE id = ?"
+      );
+      const insertarMovimiento = db.prepare(
+        `INSERT INTO movimientos_inventario (producto_id, tipo, cantidad, referencia, usuario_id) VALUES (?, 'entrada', ?, ?, ?)`
+      );
+
+      for (const pi of itemsPreparados) {
+        insertarItem.run({ ...pi, devolucion_id: devolucionId });
+        actualizarExistencia.run(pi.cantidad, pi.producto_id);
+        insertarMovimiento.run(pi.producto_id, pi.cantidad, `Devolución venta #${venta.folio}`, req.user.id);
+      }
+
+      if (venta.metodo_pago === 'fiado' && venta.cliente_id) {
+        db.prepare('UPDATE clientes SET saldo_credito = saldo_credito - ? WHERE id = ?').run(
+          total,
+          venta.cliente_id
+        );
+      }
+
+      return devolucionId;
+    })();
+
+    const devolucion = db.prepare('SELECT * FROM devoluciones WHERE id = ?').get(idDevolucion);
+    const devolucionItems = db.prepare('SELECT * FROM devolucion_items WHERE devolucion_id = ?').all(idDevolucion);
+    res.status(201).json({ ...devolucion, items: devolucionItems });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'No se pudo procesar la devolución' });
+  }
+});
+
+router.get('/:id/devoluciones', (req, res) => {
+  const devoluciones = db
+    .prepare(
+      `SELECT d.*, u.nombre_completo AS usuario_nombre
+       FROM devoluciones d LEFT JOIN usuarios u ON u.id = d.usuario_id
+       WHERE d.venta_id = ? ORDER BY d.creado_en DESC`
+    )
+    .all(req.params.id);
+  const conItems = devoluciones.map((d) => ({
+    ...d,
+    items: db.prepare('SELECT * FROM devolucion_items WHERE devolucion_id = ?').all(d.id),
+  }));
+  res.json(conItems);
 });
 
 module.exports = router;

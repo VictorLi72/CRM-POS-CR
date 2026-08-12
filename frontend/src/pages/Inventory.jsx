@@ -15,6 +15,7 @@ const EMPTY_PRODUCT = {
   unidad_medida: 'unidad',
   existencia: 0,
   existencia_minima: 5,
+  acceso_rapido: false,
 };
 
 const IVA_RATES = [0, 1, 2, 4, 13];
@@ -128,7 +129,10 @@ export default function Inventory() {
             {products.map((p) => (
               <tr key={p.id}>
                 <td className="text-muted">{p.codigo_barras || '—'}</td>
-                <td>{p.nombre}</td>
+                <td>
+                  {p.nombre}
+                  {p.acceso_rapido === 1 && <span className="badge badge-success" style={{ marginLeft: 6 }}>Rápido</span>}
+                </td>
                 <td>{p.categoria_nombre || '—'}</td>
                 <td>{formatCurrency(p.precio_costo)}</td>
                 <td>{formatCurrency(p.precio_venta)}</td>
@@ -283,6 +287,16 @@ function ProductModal({ product, categories, onClose, onSave }) {
         <div className="form-group">
           <label>Código CABYS (opcional, para factura electrónica)</label>
           <input type="text" value={form.codigo_cabys || ''} onChange={(e) => set('codigo_cabys', e.target.value)} placeholder="Ej: 1234567890123" />
+        </div>
+        <div className="form-group">
+          <label className="flex items-center gap-8" style={{ fontWeight: 400, color: 'var(--color-text)' }}>
+            <input
+              type="checkbox"
+              checked={!!form.acceso_rapido}
+              onChange={(e) => set('acceso_rapido', e.target.checked)}
+            />
+            Mostrar en accesos rápidos del POS (para productos sin código de barras, ej. frutas, pan, bolsas)
+          </label>
         </div>
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS productos (
   unidad_medida TEXT NOT NULL DEFAULT 'unidad',
   existencia REAL NOT NULL DEFAULT 0,
   existencia_minima REAL NOT NULL DEFAULT 5,
+  acceso_rapido INTEGER NOT NULL DEFAULT 0,
   activo INTEGER NOT NULL DEFAULT 1,
   creado_en TEXT NOT NULL DEFAULT (datetime('now')),
   actualizado_en TEXT NOT NULL DEFAULT (datetime('now'))
@@ -103,3 +104,41 @@ CREATE TABLE IF NOT EXISTS pagos_credito (
   usuario_id INTEGER REFERENCES usuarios(id),
   creado_en TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS devoluciones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  venta_id INTEGER NOT NULL REFERENCES ventas(id),
+  usuario_id INTEGER REFERENCES usuarios(id),
+  motivo TEXT,
+  total REAL NOT NULL,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS devolucion_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  devolucion_id INTEGER NOT NULL REFERENCES devoluciones(id) ON DELETE CASCADE,
+  detalle_venta_id INTEGER NOT NULL REFERENCES detalle_ventas(id),
+  producto_id INTEGER NOT NULL REFERENCES productos(id),
+  producto_nombre TEXT NOT NULL,
+  cantidad REAL NOT NULL,
+  precio_unitario REAL NOT NULL,
+  total REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_devoluciones_venta ON devoluciones(venta_id);
+CREATE INDEX IF NOT EXISTS idx_devolucion_items_detalle ON devolucion_items(detalle_venta_id);
+
+CREATE TABLE IF NOT EXISTS turnos_caja (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  monto_apertura REAL NOT NULL DEFAULT 0,
+  efectivo_contado REAL,
+  efectivo_esperado REAL,
+  diferencia REAL,
+  notas TEXT,
+  estado TEXT NOT NULL DEFAULT 'abierto' CHECK (estado IN ('abierto', 'cerrado')),
+  abierto_en TEXT NOT NULL DEFAULT (datetime('now')),
+  cerrado_en TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_turnos_caja_usuario ON turnos_caja(usuario_id);

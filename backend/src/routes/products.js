@@ -28,7 +28,7 @@ router.delete('/categories/:id', requireRole('administrador'), (req, res) => {
 
 // --- Productos ---
 router.get('/', (req, res) => {
-  const { search, lowStock, categoryId } = req.query;
+  const { search, lowStock, categoryId, quickAccess } = req.query;
   let sql = `
     SELECT p.*, c.nombre AS categoria_nombre
     FROM productos p
@@ -46,6 +46,9 @@ router.get('/', (req, res) => {
   }
   if (lowStock === 'true') {
     sql += ' AND p.existencia <= p.existencia_minima';
+  }
+  if (quickAccess === 'true') {
+    sql += ' AND p.acceso_rapido = 1';
   }
   sql += ' ORDER BY p.nombre';
   res.json(db.prepare(sql).all(...params));
@@ -73,8 +76,8 @@ router.post('/', requireRole('administrador', 'supervisor'), (req, res) => {
   try {
     const info = db
       .prepare(
-        `INSERT INTO productos (codigo_barras, nombre, categoria_id, precio_costo, precio_venta, tarifa_iva, codigo_cabys, unidad_medida, existencia, existencia_minima)
-         VALUES (@codigo_barras, @nombre, @categoria_id, @precio_costo, @precio_venta, @tarifa_iva, @codigo_cabys, @unidad_medida, @existencia, @existencia_minima)`
+        `INSERT INTO productos (codigo_barras, nombre, categoria_id, precio_costo, precio_venta, tarifa_iva, codigo_cabys, unidad_medida, existencia, existencia_minima, acceso_rapido)
+         VALUES (@codigo_barras, @nombre, @categoria_id, @precio_costo, @precio_venta, @tarifa_iva, @codigo_cabys, @unidad_medida, @existencia, @existencia_minima, @acceso_rapido)`
       )
       .run({
         codigo_barras: b.codigo_barras || null,
@@ -87,6 +90,7 @@ router.post('/', requireRole('administrador', 'supervisor'), (req, res) => {
         unidad_medida: b.unidad_medida || 'unidad',
         existencia: b.existencia || 0,
         existencia_minima: b.existencia_minima ?? 5,
+        acceso_rapido: b.acceso_rapido ? 1 : 0,
       });
     const producto = db.prepare('SELECT * FROM productos WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(producto);
@@ -105,6 +109,7 @@ router.put('/:id', requireRole('administrador', 'supervisor'), (req, res) => {
         codigo_barras = @codigo_barras, nombre = @nombre, categoria_id = @categoria_id,
         precio_costo = @precio_costo, precio_venta = @precio_venta, tarifa_iva = @tarifa_iva,
         codigo_cabys = @codigo_cabys, unidad_medida = @unidad_medida, existencia_minima = @existencia_minima,
+        acceso_rapido = @acceso_rapido,
         actualizado_en = datetime('now')
        WHERE id = @id`
     ).run({
@@ -118,6 +123,7 @@ router.put('/:id', requireRole('administrador', 'supervisor'), (req, res) => {
       codigo_cabys: b.codigo_cabys ?? existente.codigo_cabys,
       unidad_medida: b.unidad_medida ?? existente.unidad_medida,
       existencia_minima: b.existencia_minima ?? existente.existencia_minima,
+      acceso_rapido: b.acceso_rapido != null ? (b.acceso_rapido ? 1 : 0) : existente.acceso_rapido,
     });
     res.json(db.prepare('SELECT * FROM productos WHERE id = ?').get(req.params.id));
   } catch (err) {

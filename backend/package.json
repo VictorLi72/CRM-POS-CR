@@ -1,6 +1,6 @@
 {
   "name": "crm-super-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Servidor central del CRM/POS para supermercado (Costa Rica)",
   "main": "src/server.js",

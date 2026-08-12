@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import api from '../api/client';
+import api, { getPrinterName } from '../api/client';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext.jsx';
+import { buildReceiptHtml } from '../utils/receiptHtml';
 
 const REDONDEAR = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+const DEBOUNCE_BUSQUEDA_MS = 150;
 
 export default function POS() {
   const { user } = useAuth();
   const [scanValue, setScanValue] = useState('');
   const [scanError, setScanError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [quickProducts, setQuickProducts] = useState([]);
   const [cart, setCart] = useState([]); // { producto, cantidad, descuento }
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState('');
@@ -20,10 +23,13 @@ export default function POS() {
   const [processing, setProcessing] = useState(false);
   const [lastSale, setLastSale] = useState(null);
   const scanInputRef = useRef(null);
+  const debounceRef = useRef(null);
+  const latestQueryRef = useRef('');
 
   useEffect(() => {
     scanInputRef.current?.focus();
     loadCustomers('');
+    loadQuickProducts();
   }, []);
 
   async function loadCustomers(search) {
@@ -32,6 +38,15 @@ export default function POS() {
       setCustomers(res.data);
     } catch (err) {
       // silencioso: no bloquea el POS si falla la búsqueda de clientes
+    }
+  }
+
+  async function loadQuickProducts() {
+    try {
+      const res = await api.get('/products', { params: { quickAccess: true } });
+      setQuickProducts(res.data);
+    } catch (err) {
+      // silencioso: los accesos rápidos son un atajo, no algo crítico
     }
   }
 
@@ -64,26 +79,58 @@ export default function POS() {
     }
   }
 
-  async function handleScanChange(e) {
+  function handleScanChange(e) {
     const value = e.target.value;
     setScanValue(value);
     setScanError('');
-    if (value.trim().length >= 2) {
-      try {
-        const res = await api.get('/products', { params: { search: value.trim() } });
-        setSuggestions(res.data.slice(0, 8));
-      } catch (err) {
-        setSuggestions([]);
-      }
-    } else {
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const query = value.trim();
+    if (query.length < 2) {
       setSuggestions([]);
+      return;
     }
+
+    debounceRef.current = setTimeout(async () => {
+      latestQueryRef.current = query;
+      try {
+        const res = await api.get('/products', { params: { search: query } });
+        // Si el usuario ya escribió/escaneó algo más mientras la respuesta viajaba,
+        // esta respuesta quedó vieja y no debe pisar las sugerencias más recientes.
+        if (latestQueryRef.current === query) {
+          setSuggestions(res.data.slice(0, 8));
+        }
+      } catch (err) {
+        if (latestQueryRef.current === query) setSuggestions([]);
+      }
+    }, DEBOUNCE_BUSQUEDA_MS);
+  }
+
+  function handleScanBlur() {
+    // Si el foco se fue a un lugar "de nada" (se hizo clic en el fondo, una celda,
+    // etc.) lo devolvemos al campo de escaneo para que el cajero pueda seguir
+    // escaneando sin tener que hacer clic ahí de nuevo. Si el foco fue a otro campo
+    // real (cantidad, cliente, pago...) lo dejamos tranquilo.
+    setTimeout(() => {
+      if (document.activeElement === document.body) {
+        scanInputRef.current?.focus();
+      }
+    }, 50);
   }
 
   function updateQuantity(productId, cantidad) {
     setCart((prev) =>
       prev.map((line) =>
-        line.producto.id === productId ? { ...line, cantidad: Math.max(0.001, cantidad) } : line
+        line.producto.id === productId ? { ...line, cantidad: Math.max(0.1, cantidad) } : line
+      )
+    );
+  }
+
+  function updateDiscount(productId, descuento) {
+    setCart((prev) =>
+      prev.map((line) =>
+        line.producto.id === productId ? { ...line, descuento: Math.max(0, descuento) } : line
       )
     );
   }
@@ -102,7 +149,7 @@ export default function POS() {
 
   const totals = cart.reduce(
     (acc, line) => {
-      const lineTotal = line.producto.precio_venta * line.cantidad - line.descuento;
+      const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
       const sinIva = lineTotal / (1 + line.producto.tarifa_iva / 100);
       const iva = lineTotal - sinIva;
       acc.subtotal += sinIva;
@@ -177,6 +224,7 @@ export default function POS() {
                   type="text"
                   value={scanValue}
                   onChange={handleScanChange}
+                  onBlur={handleScanBlur}
                   placeholder="Escanee con el lector o escriba el nombre..."
                   autoComplete="off"
                 />
@@ -214,6 +262,28 @@ export default function POS() {
             {scanError && <div className="alert alert-danger" style={{ marginTop: 12 }}>{scanError}</div>}
           </div>
 
+          {quickProducts.length > 0 && (
+            <div className="card">
+              <h3 className="mt-0" style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+                Accesos rápidos
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                {quickProducts.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ flexDirection: 'column', height: 'auto', padding: '10px 8px', textAlign: 'center', lineHeight: 1.3 }}
+                    onClick={() => addProductToCart(p)}
+                  >
+                    <span style={{ fontWeight: 700 }}>{p.nombre}</span>
+                    <span className="text-muted" style={{ fontSize: 12 }}>{formatCurrency(p.precio_venta)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="card">
             {cart.length === 0 ? (
               <div className="empty-state">El carrito está vacío. Escaneá un producto para comenzar.</div>
@@ -224,6 +294,7 @@ export default function POS() {
                     <th>Producto</th>
                     <th>Precio</th>
                     <th>Cant.</th>
+                    <th>Desc. ₡</th>
                     <th>IVA</th>
                     <th className="text-right">Total</th>
                     <th></th>
@@ -231,7 +302,7 @@ export default function POS() {
                 </thead>
                 <tbody>
                   {cart.map((line) => {
-                    const lineTotal = line.producto.precio_venta * line.cantidad - line.descuento;
+                    const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
                     return (
                       <tr key={line.producto.id}>
                         <td>{line.producto.nombre}</td>
@@ -239,10 +310,19 @@ export default function POS() {
                         <td style={{ width: 90 }}>
                           <input
                             type="number"
-                            step="0.001"
-                            min="0.001"
+                            step="0.1"
+                            min="0.1"
                             value={line.cantidad}
                             onChange={(e) => updateQuantity(line.producto.id, Number(e.target.value))}
+                          />
+                        </td>
+                        <td style={{ width: 90 }}>
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={line.descuento}
+                            onChange={(e) => updateDiscount(line.producto.id, Number(e.target.value))}
                           />
                         </td>
                         <td>{line.producto.tarifa_iva}%</td>
@@ -357,6 +437,23 @@ export default function POS() {
 }
 
 function Receipt({ sale, cashier, onNewSale }) {
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const [errorImpresion, setErrorImpresion] = useState('');
+  const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
+
+  async function imprimir() {
+    setErrorImpresion('');
+    setImprimiendo(true);
+    try {
+      const html = buildReceiptHtml(sale, cashier);
+      await window.electronAPI.imprimirTiquete(html, getPrinterName());
+    } catch (err) {
+      setErrorImpresion('No se pudo imprimir. Revisá la impresora en Configuración.');
+    } finally {
+      setImprimiendo(false);
+    }
+  }
+
   return (
     <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
       <div className="text-center">
@@ -371,6 +468,7 @@ function Receipt({ sale, cashier, onNewSale }) {
                 {it.producto_nombre}
                 <div className="text-muted">
                   {it.cantidad} x {formatCurrency(it.precio_unitario)}
+                  {it.descuento > 0 && <> · desc. {formatCurrency(it.descuento)}</>}
                 </div>
               </td>
               <td className="text-right">{formatCurrency(it.total)}</td>
@@ -390,7 +488,13 @@ function Receipt({ sale, cashier, onNewSale }) {
         <div className="flex justify-between"><span className="text-muted">Pago</span><span>{sale.metodo_pago}</span></div>
         <div className="flex justify-between"><span className="text-muted">Cajero</span><span>{cashier}</span></div>
       </div>
-      <button className="btn" style={{ width: '100%', marginTop: 20 }} onClick={onNewSale}>
+      {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}
+      {tieneAPIImpresion && (
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 20 }} onClick={imprimir} disabled={imprimiendo}>
+          {imprimiendo ? 'Imprimiendo...' : '🖨️ Imprimir tiquete'}
+        </button>
+      )}
+      <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={onNewSale}>
         Nueva venta
       </button>
     </div>

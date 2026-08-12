@@ -3,6 +3,8 @@ import Login from './pages/Login.jsx';
 import POS from './pages/POS.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Customers from './pages/Customers.jsx';
+import Returns from './pages/Returns.jsx';
+import CashRegister from './pages/CashRegister.jsx';
 import Reports from './pages/Reports.jsx';
 import Users from './pages/Users.jsx';
 import Settings from './pages/Settings.jsx';
@@ -34,6 +36,22 @@ export default function App() {
         element={
           <ProtectedRoute roles={['administrador', 'supervisor', 'cajero']}>
             <Customers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/returns"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor']}>
+            <Returns />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cash-register"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor', 'cajero']}>
+            <CashRegister />
           </ProtectedRoute>
         }
       />

@@ -8,6 +8,7 @@ const customerRoutes = require('./routes/customers');
 const saleRoutes = require('./routes/sales');
 const reportRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
+const turnoRoutes = require('./routes/turnos');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/turnos', turnoRoutes);
 
 // Manejo centralizado de errores no capturados
 app.use((err, req, res, next) => {

@@ -5,6 +5,8 @@ const NAV_ITEMS = [
   { to: '/pos', label: 'Punto de Venta', icon: '🧾', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/inventory', label: 'Inventario', icon: '📦', roles: ['administrador', 'supervisor'] },
   { to: '/customers', label: 'Clientes', icon: '👥', roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/returns', label: 'Devoluciones', icon: '↩️', roles: ['administrador', 'supervisor'] },
+  { to: '/cash-register', label: 'Cierre de caja', icon: '🗄️', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/reports', label: 'Reportes', icon: '📊', roles: ['administrador', 'supervisor'] },
   { to: '/users', label: 'Usuarios', icon: '🔑', roles: ['administrador'] },
   { to: '/settings', label: 'Configuración', icon: '⚙️', roles: ['administrador', 'supervisor', 'cajero'] },
