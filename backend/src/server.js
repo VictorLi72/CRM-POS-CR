@@ -9,6 +9,8 @@ const saleRoutes = require('./routes/sales');
 const reportRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
 const turnoRoutes = require('./routes/turnos');
+const taxRateRoutes = require('./routes/taxRates');
+const discountRoutes = require('./routes/discounts');
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/turnos', turnoRoutes);
+app.use('/api/tax-rates', taxRateRoutes);
+app.use('/api/discounts', discountRoutes);
 
 // Manejo centralizado de errores no capturados
 app.use((err, req, res, next) => {

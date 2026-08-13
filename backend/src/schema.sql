@@ -142,3 +142,28 @@ CREATE TABLE IF NOT EXISTS turnos_caja (
 );
 
 CREATE INDEX IF NOT EXISTS idx_turnos_caja_usuario ON turnos_caja(usuario_id);
+
+-- Catálogo de tarifas de IVA disponibles para los productos (reemplaza la lista
+-- fija que antes vivía solo en el código del frontend). No es llave foránea de
+-- productos.tarifa_iva a propósito: ese campo sigue guardando el porcentaje
+-- directamente, así que borrar/desactivar una tarifa acá no afecta productos
+-- que ya la usan, solo dejan de ofrecerla para productos nuevos.
+CREATE TABLE IF NOT EXISTS tarifas_iva (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  porcentaje REAL NOT NULL UNIQUE,
+  nombre TEXT,
+  activo INTEGER NOT NULL DEFAULT 1,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Descuentos con nombre que el cajero puede elegir en el POS en vez de escribir
+-- el monto a mano (ej. "Empleado 10%"). "tipo" define si "valor" es un
+-- porcentaje de la línea o un monto fijo en colones.
+CREATE TABLE IF NOT EXISTS descuentos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('porcentaje', 'monto')),
+  valor REAL NOT NULL,
+  activo INTEGER NOT NULL DEFAULT 1,
+  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+);
