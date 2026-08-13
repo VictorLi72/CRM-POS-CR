@@ -6,6 +6,7 @@ import {
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency, formatDateOnly } from '../utils/format';
+import { crearLibroEstilado, FORMATO_COLONES, FORMATO_ENTERO, FORMATO_CANTIDAD } from '../utils/excelExport';
 
 const COLORS = ['#1e6f5c', '#2563eb', '#b8860b', '#d64545', '#6b7686', '#17594a', '#7c3aed', '#0891b2'];
 
@@ -39,6 +40,56 @@ export default function Reports() {
     api.get('/reports/sales-by-category', { params }).then((res) => setByCategory(res.data));
     api.get('/reports/sales-by-cashier', { params }).then((res) => setByCashier(res.data));
   }, [from, to]);
+
+  function exportarExcel() {
+    const periodo = `Período: ${formatDateOnly(from)} — ${formatDateOnly(to)}`;
+    const libro = crearLibroEstilado();
+
+    if (summary) {
+      libro.agregarHoja(
+        'Resumen',
+        `Resumen general — ${periodo}`,
+        ['Indicador', 'Valor'],
+        [
+          ['Ventas de hoy', `${formatCurrency(summary.ventas_hoy.total)} (${summary.ventas_hoy.cantidad} tiquetes)`],
+          ['Ventas del mes', `${formatCurrency(summary.ventas_mes.total)} (${summary.ventas_mes.cantidad} tiquetes)`],
+          ['Productos con stock bajo', String(summary.productos_stock_bajo)],
+          ['Fiado pendiente', formatCurrency(summary.fiado_pendiente_total)],
+        ]
+      );
+    }
+
+    libro.agregarHoja(
+      'Ventas por día',
+      `Ventas por día — ${periodo}`,
+      ['Día', 'Total', 'Tiquetes'],
+      byDay.map((d) => [formatDateOnly(d.dia), d.total, d.cantidad]),
+      [null, FORMATO_COLONES, FORMATO_ENTERO]
+    );
+    libro.agregarHoja(
+      'Top productos',
+      `Top productos — ${periodo}`,
+      ['Producto', 'Cantidad', 'Ingreso'],
+      byProduct.map((p) => [p.producto_nombre, p.cantidad, p.ingreso]),
+      [null, FORMATO_CANTIDAD, FORMATO_COLONES]
+    );
+    libro.agregarHoja(
+      'Ventas por categoría',
+      `Ventas por categoría — ${periodo}`,
+      ['Categoría', 'Cantidad', 'Ingreso'],
+      byCategory.map((c) => [c.categoria, c.cantidad, c.ingreso]),
+      [null, FORMATO_CANTIDAD, FORMATO_COLONES]
+    );
+    libro.agregarHoja(
+      'Ventas por cajero',
+      `Ventas por cajero — ${periodo}`,
+      ['Cajero', 'Tiquetes', 'Total'],
+      byCashier.map((c) => [c.cajero_nombre, c.cantidad, c.ingreso]),
+      [null, FORMATO_ENTERO, FORMATO_COLONES]
+    );
+
+    libro.descargar(`reporte-ventas_${from}_a_${to}.xlsx`);
+  }
 
   return (
     <Layout title="Reportes">
@@ -74,6 +125,7 @@ export default function Reports() {
           <label className="text-muted">Hasta</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
+        <button className="btn btn-secondary" onClick={exportarExcel}>📥 Exportar a Excel</button>
       </div>
 
       <div className="card">

@@ -28,7 +28,7 @@ router.delete('/categories/:id', requireRole('administrador'), (req, res) => {
 
 // --- Productos ---
 router.get('/', (req, res) => {
-  const { search, lowStock, categoryId, quickAccess } = req.query;
+  const { search, lowStock, categoryId, quickAccess, tarifaIva } = req.query;
   let sql = `
     SELECT p.*, c.nombre AS categoria_nombre
     FROM productos p
@@ -43,6 +43,10 @@ router.get('/', (req, res) => {
   if (categoryId) {
     sql += ' AND p.categoria_id = ?';
     params.push(categoryId);
+  }
+  if (tarifaIva) {
+    sql += ' AND p.tarifa_iva = ?';
+    params.push(tarifaIva);
   }
   if (lowStock === 'true') {
     sql += ' AND p.existencia <= p.existencia_minima';

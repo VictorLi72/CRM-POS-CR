@@ -4,9 +4,11 @@ import POS from './pages/POS.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Customers from './pages/Customers.jsx';
 import Returns from './pages/Returns.jsx';
+import SalesHistory from './pages/SalesHistory.jsx';
 import CashRegister from './pages/CashRegister.jsx';
 import Reports from './pages/Reports.jsx';
 import Users from './pages/Users.jsx';
+import TaxAndDiscounts from './pages/TaxAndDiscounts.jsx';
 import Settings from './pages/Settings.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
@@ -56,10 +58,26 @@ export default function App() {
         }
       />
       <Route
+        path="/sales-history"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor']}>
+            <SalesHistory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/reports"
         element={
           <ProtectedRoute roles={['administrador', 'supervisor']}>
             <Reports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tax-discounts"
+        element={
+          <ProtectedRoute roles={['administrador']}>
+            <TaxAndDiscounts />
           </ProtectedRoute>
         }
       />

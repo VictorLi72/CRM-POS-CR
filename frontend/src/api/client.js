@@ -3,6 +3,7 @@ import axios from 'axios';
 const SERVER_URL_KEY = 'crm_server_url';
 const TOKEN_KEY = 'crm_token';
 const PRINTER_KEY = 'crm_printer_name';
+const AUTO_PRINT_KEY = 'crm_auto_print';
 
 export function getServerUrl() {
   return localStorage.getItem(SERVER_URL_KEY) || 'http://localhost:4000';
@@ -28,6 +29,14 @@ export function getPrinterName() {
 export function setPrinterName(name) {
   if (name) localStorage.setItem(PRINTER_KEY, name);
   else localStorage.removeItem(PRINTER_KEY);
+}
+
+export function getAutoPrint() {
+  return localStorage.getItem(AUTO_PRINT_KEY) === 'true';
+}
+
+export function setAutoPrint(value) {
+  localStorage.setItem(AUTO_PRINT_KEY, value ? 'true' : 'false');
 }
 
 const api = axios.create();

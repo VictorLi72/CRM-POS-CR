@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getServerUrl, setServerUrl, getPrinterName, setPrinterName } from '../api/client';
+import { getServerUrl, setServerUrl, getPrinterName, setPrinterName, getAutoPrint, setAutoPrint } from '../api/client';
 import api from '../api/client';
 
 export default function Settings() {
@@ -11,7 +11,13 @@ export default function Settings() {
   const [impresoras, setImpresoras] = useState([]);
   const [impresoraSeleccionada, setImpresoraSeleccionada] = useState(getPrinterName());
   const [impresoraGuardada, setImpresoraGuardada] = useState(false);
+  const [autoPrint, setAutoPrintState] = useState(getAutoPrint());
   const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
+
+  function toggleAutoPrint(checked) {
+    setAutoPrint(checked);
+    setAutoPrintState(checked);
+  }
 
   useEffect(() => {
     if (tieneAPIImpresion) {
@@ -89,6 +95,16 @@ export default function Settings() {
             )}
             {impresoraGuardada && <div className="alert alert-success">Impresora guardada.</div>}
             <button className="btn" onClick={guardarImpresora}>Guardar impresora</button>
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--color-border)' }}>
+              <label className="flex items-center gap-8" style={{ fontWeight: 400, color: 'var(--color-text)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={autoPrint}
+                  onChange={(e) => toggleAutoPrint(e.target.checked)}
+                />
+                Imprimir el tiquete automáticamente al cobrar
+              </label>
+            </div>
           </>
         )}
       </div>

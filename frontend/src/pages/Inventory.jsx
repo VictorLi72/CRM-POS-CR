@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency } from '../utils/format';
@@ -18,13 +19,16 @@ const EMPTY_PRODUCT = {
   acceso_rapido: false,
 };
 
-const IVA_RATES = [0, 1, 2, 4, 13];
-
 export default function Inventory() {
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [ivaRates, setIvaRates] = useState([]);
   const [search, setSearch] = useState('');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [ivaFilter, setIvaFilter] = useState('');
+  const [lowStockOnly, setLowStockOnly] = useState(!!location.state?.lowStockOnly);
+  const [quickOnly, setQuickOnly] = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
   const [error, setError] = useState('');
   const [newCategory, setNewCategory] = useState('');
@@ -33,21 +37,45 @@ export default function Inventory() {
 
   useEffect(() => {
     loadCategories();
+    loadIvaRates();
   }, []);
 
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, lowStockOnly]);
+  }, [search, categoryFilter, ivaFilter, lowStockOnly, quickOnly]);
 
   async function loadProducts() {
-    const res = await api.get('/products', { params: { search, lowStock: lowStockOnly } });
+    const res = await api.get('/products', {
+      params: {
+        search,
+        categoryId: categoryFilter || undefined,
+        tarifaIva: ivaFilter || undefined,
+        lowStock: lowStockOnly || undefined,
+        quickAccess: quickOnly || undefined,
+      },
+    });
     setProducts(res.data);
   }
+
+  function limpiarFiltros() {
+    setSearch('');
+    setCategoryFilter('');
+    setIvaFilter('');
+    setLowStockOnly(false);
+    setQuickOnly(false);
+  }
+
+  const hayFiltrosActivos = !!(search || categoryFilter || ivaFilter || lowStockOnly || quickOnly);
 
   async function loadCategories() {
     const res = await api.get('/products/categories');
     setCategories(res.data);
+  }
+
+  async function loadIvaRates() {
+    const res = await api.get('/tax-rates');
+    setIvaRates(res.data);
   }
 
   async function saveProduct(product) {
@@ -93,6 +121,18 @@ export default function Inventory() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ maxWidth: 200 }}>
+          <option value="">Todas las categorías</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        <select value={ivaFilter} onChange={(e) => setIvaFilter(e.target.value)} style={{ maxWidth: 140 }}>
+          <option value="">Todas las tarifas</option>
+          {ivaRates.map((r) => (
+            <option key={r.id} value={r.porcentaje}>IVA {r.porcentaje}%</option>
+          ))}
+        </select>
         <label className="flex items-center gap-8">
           <input
             type="checkbox"
@@ -101,7 +141,20 @@ export default function Inventory() {
           />
           Solo stock bajo
         </label>
-        <div className="flex gap-8">
+        <label className="flex items-center gap-8">
+          <input
+            type="checkbox"
+            checked={quickOnly}
+            onChange={(e) => setQuickOnly(e.target.checked)}
+          />
+          Solo accesos rápidos
+        </label>
+        {hayFiltrosActivos && (
+          <button className="btn btn-secondary btn-sm" onClick={limpiarFiltros}>
+            Limpiar filtros
+          </button>
+        )}
+        <div className="flex gap-8" style={{ marginLeft: 'auto' }}>
           <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)}>
             Categorías
           </button>
@@ -110,6 +163,9 @@ export default function Inventory() {
           </button>
         </div>
       </div>
+      <p className="text-muted" style={{ marginTop: -8, marginBottom: 14, fontSize: 12 }}>
+        {products.length} producto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
+      </p>
 
       <div className="card">
         <table>
@@ -169,6 +225,7 @@ export default function Inventory() {
         <ProductModal
           product={modalProduct}
           categories={categories}
+          ivaRates={ivaRates}
           onClose={() => setModalProduct(null)}
           onSave={saveProduct}
         />
@@ -215,7 +272,7 @@ export default function Inventory() {
   );
 }
 
-function ProductModal({ product, categories, onClose, onSave }) {
+function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
   const [form, setForm] = useState(product);
 
   function set(field, value) {
@@ -257,8 +314,8 @@ function ProductModal({ product, categories, onClose, onSave }) {
           <div className="form-group">
             <label>IVA</label>
             <select value={form.tarifa_iva} onChange={(e) => set('tarifa_iva', Number(e.target.value))}>
-              {IVA_RATES.map((r) => (
-                <option key={r} value={r}>{r}%</option>
+              {ivaRates.map((r) => (
+                <option key={r.id} value={r.porcentaje}>{r.porcentaje}%{r.nombre ? ` — ${r.nombre}` : ''}</option>
               ))}
             </select>
           </div>

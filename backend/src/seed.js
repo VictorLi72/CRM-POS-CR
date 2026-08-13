@@ -65,6 +65,36 @@ function seed() {
     console.log('Ya existen categorías, se omite creación de datos de ejemplo.');
   }
 
+  const totalTarifas = db.prepare('SELECT COUNT(*) AS c FROM tarifas_iva').get().c;
+  if (totalTarifas === 0) {
+    const tarifas = [
+      { porcentaje: 0, nombre: 'Exento / Canasta básica' },
+      { porcentaje: 1, nombre: 'Tarifa reducida 1%' },
+      { porcentaje: 2, nombre: 'Tarifa reducida 2%' },
+      { porcentaje: 4, nombre: 'Tarifa reducida 4%' },
+      { porcentaje: 13, nombre: 'Tarifa general' },
+    ];
+    const insertarTarifa = db.prepare('INSERT INTO tarifas_iva (porcentaje, nombre) VALUES (@porcentaje, @nombre)');
+    for (const t of tarifas) insertarTarifa.run(t);
+    console.log(`Tarifas de IVA (${tarifas.length}) creadas.`);
+  } else {
+    console.log('Ya existen tarifas de IVA, se omite creación.');
+  }
+
+  const totalDescuentos = db.prepare('SELECT COUNT(*) AS c FROM descuentos').get().c;
+  if (totalDescuentos === 0) {
+    const descuentos = [
+      { nombre: 'Empleado', tipo: 'porcentaje', valor: 10 },
+      { nombre: 'Tercera edad', tipo: 'porcentaje', valor: 5 },
+      { nombre: 'Liquidación', tipo: 'porcentaje', valor: 20 },
+    ];
+    const insertarDescuento = db.prepare('INSERT INTO descuentos (nombre, tipo, valor) VALUES (@nombre, @tipo, @valor)');
+    for (const d of descuentos) insertarDescuento.run(d);
+    console.log(`Descuentos (${descuentos.length}) de ejemplo creados.`);
+  } else {
+    console.log('Ya existen descuentos, se omite creación.');
+  }
+
   const totalClientes = db.prepare('SELECT COUNT(*) AS c FROM clientes').get().c;
   if (totalClientes === 0) {
     db.prepare(

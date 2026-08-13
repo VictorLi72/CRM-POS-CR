@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import api, { getPrinterName } from '../api/client';
+import api, { getPrinterName, getAutoPrint } from '../api/client';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext.jsx';
 import { buildReceiptHtml } from '../utils/receiptHtml';
@@ -8,16 +8,28 @@ import { buildReceiptHtml } from '../utils/receiptHtml';
 const REDONDEAR = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const DEBOUNCE_BUSQUEDA_MS = 150;
 
+const PAYMENT_METHODS = [
+  { value: 'efectivo', label: '💵 Efectivo', shortcut: 'F1' },
+  { value: 'tarjeta', label: '💳 Tarjeta', shortcut: 'F2' },
+  { value: 'sinpe', label: '📱 SINPE Móvil', shortcut: 'F3' },
+  { value: 'fiado', label: '📒 Fiado', shortcut: 'F4' },
+];
+
 export default function POS() {
   const { user } = useAuth();
   const [scanValue, setScanValue] = useState('');
   const [scanError, setScanError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [quickProducts, setQuickProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [activeTab, setActiveTab] = useState('all');
+  const [tabProducts, setTabProducts] = useState([]);
   const [cart, setCart] = useState([]); // { producto, cantidad, descuento }
+  const [justAddedId, setJustAddedId] = useState(null);
+  const [selectedProductId, setSelectedProductId] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [discounts, setDiscounts] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -25,12 +37,117 @@ export default function POS() {
   const scanInputRef = useRef(null);
   const debounceRef = useRef(null);
   const latestQueryRef = useRef('');
+  const flashTimeoutRef = useRef(null);
+  const cartRef = useRef(cart);
+  const processingRef = useRef(processing);
+  const selectedIdRef = useRef(selectedProductId);
+  const handleCheckoutRef = useRef(() => {});
+  const clearCartRef = useRef(() => {});
+  const stepQuantityRef = useRef(() => {});
+  const removeLineRef = useRef(() => {});
 
   useEffect(() => {
     scanInputRef.current?.focus();
     loadCustomers('');
-    loadQuickProducts();
+    loadCategories();
+    loadDiscounts();
   }, []);
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  useEffect(() => {
+    processingRef.current = processing;
+  }, [processing]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedProductId;
+  }, [selectedProductId]);
+
+  // Atajos de teclado: F1-F4 eligen el método de pago, Enter/F9 cobra y Esc
+  // cancela la venta. Enter se ignora mientras se escribe en cualquier campo,
+  // porque el de escaneo ya usa Enter para agregar el producto y no queremos
+  // disparar el cobro a la vez. Esc sí funciona con el foco en el campo de
+  // escaneo (el estado normal entre un escaneo y otro), pero se ignora al
+  // editar cantidad/descuento/monto recibido para no borrar el carrito sin
+  // querer mientras se ajusta un valor.
+  // Además: con un producto del carrito "seleccionado" (el último agregado,
+  // o el que se haga clic), +/- suman o restan una unidad, ↑/↓ cambian cuál
+  // está seleccionado y Supr/Backspace lo quita. Todo esto también se ignora
+  // mientras se escribe en un campo, para no interferir con esa edición.
+  useEffect(() => {
+    function onKeyDown(e) {
+      const activeEl = document.activeElement;
+      const tag = activeEl?.tagName;
+      const isFormField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      const isScanInput = activeEl === scanInputRef.current;
+
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setPaymentMethod('efectivo');
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        setPaymentMethod('tarjeta');
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        setPaymentMethod('sinpe');
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        setPaymentMethod('fiado');
+      } else if (e.key === 'F9' || (e.key === 'Enter' && !isFormField)) {
+        if (cartRef.current.length > 0 && !processingRef.current) {
+          e.preventDefault();
+          handleCheckoutRef.current();
+        }
+      } else if (e.key === 'Escape' && (!isFormField || isScanInput)) {
+        if (cartRef.current.length > 0) clearCartRef.current();
+      } else if ((e.key === '+' || e.key === '=') && (!isFormField || isScanInput)) {
+        if (selectedIdRef.current != null) {
+          e.preventDefault();
+          stepQuantityRef.current(selectedIdRef.current, 1);
+        }
+      } else if (e.key === '-' && (!isFormField || isScanInput)) {
+        if (selectedIdRef.current != null) {
+          e.preventDefault();
+          stepQuantityRef.current(selectedIdRef.current, -1);
+        }
+      } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (!isFormField || isScanInput)) {
+        if (cartRef.current.length > 0) {
+          e.preventDefault();
+          const ids = cartRef.current.map((l) => l.producto.id);
+          const currentIdx = ids.indexOf(selectedIdRef.current);
+          let nextIdx;
+          if (currentIdx === -1) {
+            nextIdx = e.key === 'ArrowDown' ? 0 : ids.length - 1;
+          } else if (e.key === 'ArrowDown') {
+            nextIdx = Math.min(currentIdx + 1, ids.length - 1);
+          } else {
+            nextIdx = Math.max(currentIdx - 1, 0);
+          }
+          setSelectedProductId(ids[nextIdx]);
+        }
+      } else if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        (!isFormField || (isScanInput && !scanInputRef.current.value))
+      ) {
+        // Backspace/Supr solo quitan el producto seleccionado si el campo de
+        // escaneo está vacío; si el cajero está corrigiendo una búsqueda a
+        // medio escribir, Backspace debe borrar texto como es normal.
+        if (selectedIdRef.current != null) {
+          e.preventDefault();
+          removeLineRef.current(selectedIdRef.current);
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    loadTabProducts(activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   async function loadCustomers(search) {
     try {
@@ -41,12 +158,39 @@ export default function POS() {
     }
   }
 
-  async function loadQuickProducts() {
+  async function loadCategories() {
     try {
-      const res = await api.get('/products', { params: { quickAccess: true } });
-      setQuickProducts(res.data);
+      const res = await api.get('/products/categories');
+      setCategories(res.data);
     } catch (err) {
-      // silencioso: los accesos rápidos son un atajo, no algo crítico
+      // silencioso: las categorías son un atajo de navegación, no algo crítico
+    }
+  }
+
+  async function loadDiscounts() {
+    try {
+      const res = await api.get('/discounts');
+      setDiscounts(res.data);
+    } catch (err) {
+      // silencioso: los descuentos predefinidos son un atajo, no algo crítico
+    }
+  }
+
+  function aplicarDescuentoPreset(producto, cantidad, descuentoId) {
+    const preset = discounts.find((d) => String(d.id) === descuentoId);
+    if (!preset) return;
+    const base = producto.precio_venta * cantidad;
+    const monto = preset.tipo === 'porcentaje' ? REDONDEAR(base * (preset.valor / 100)) : preset.valor;
+    updateDiscount(producto.id, monto);
+  }
+
+  async function loadTabProducts(tab) {
+    try {
+      const params = tab === 'quick' ? { quickAccess: true } : tab === 'all' ? {} : { categoryId: tab };
+      const res = await api.get('/products', { params });
+      setTabProducts(res.data);
+    } catch (err) {
+      setTabProducts([]);
     }
   }
 
@@ -64,6 +208,11 @@ export default function POS() {
     setSuggestions([]);
     setScanError('');
     scanInputRef.current?.focus();
+
+    setSelectedProductId(producto.id);
+    setJustAddedId(producto.id);
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => setJustAddedId(null), 700);
   }
 
   async function handleScanSubmit(e) {
@@ -127,6 +276,12 @@ export default function POS() {
     );
   }
 
+  function stepQuantity(productId, delta) {
+    const line = cart.find((l) => l.producto.id === productId);
+    if (!line) return;
+    updateQuantity(productId, REDONDEAR(line.cantidad + delta));
+  }
+
   function updateDiscount(productId, descuento) {
     setCart((prev) =>
       prev.map((line) =>
@@ -137,10 +292,12 @@ export default function POS() {
 
   function removeLine(productId) {
     setCart((prev) => prev.filter((line) => line.producto.id !== productId));
+    setSelectedProductId((prev) => (prev === productId ? null : prev));
   }
 
   function clearCart() {
     setCart([]);
+    setSelectedProductId(null);
     setLastSale(null);
     setAmountTendered('');
     setCustomerId('');
@@ -195,6 +352,7 @@ export default function POS() {
       const res = await api.post('/sales', payload);
       setLastSale(res.data);
       setCart([]);
+      setSelectedProductId(null);
       setAmountTendered('');
     } catch (err) {
       setScanError(err.response?.data?.error || 'No se pudo procesar la venta');
@@ -202,6 +360,13 @@ export default function POS() {
       setProcessing(false);
     }
   }
+
+  useEffect(() => {
+    handleCheckoutRef.current = handleCheckout;
+    clearCartRef.current = clearCart;
+    stepQuantityRef.current = stepQuantity;
+    removeLineRef.current = removeLine;
+  });
 
   if (lastSale) {
     return (
@@ -211,10 +376,45 @@ export default function POS() {
     );
   }
 
+  const tabs = [
+    { key: 'all', label: 'Todos' },
+    { key: 'quick', label: '⭐ Rápidos' },
+    ...categories.map((c) => ({ key: String(c.id), label: c.nombre })),
+  ];
+
+  const clienteSeleccionado = customers.find((c) => String(c.id) === String(customerId));
+
+  const topbarCliente = (
+    <div className="topbar-customer">
+      <span className="topbar-customer-label">👤</span>
+      <input
+        type="text"
+        placeholder="Buscar cliente..."
+        value={customerSearch}
+        onChange={(e) => {
+          setCustomerSearch(e.target.value);
+          loadCustomers(e.target.value);
+        }}
+      />
+      <select
+        value={customerId}
+        onChange={(e) => setCustomerId(e.target.value)}
+        title={clienteSeleccionado ? clienteSeleccionado.nombre : 'Sin cliente (venta general)'}
+      >
+        <option value="">Sin cliente (venta general)</option>
+        {customers.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nombre} {c.identificacion ? `(${c.identificacion})` : ''}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   return (
-    <Layout title="Punto de Venta">
-      <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
-        <div>
+    <Layout title="Punto de Venta" topbarExtra={topbarCliente}>
+      <div className="pos-layout">
+        <div className="pos-main-col">
           <div className="card">
             <form onSubmit={handleScanSubmit} style={{ position: 'relative' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
@@ -227,6 +427,7 @@ export default function POS() {
                   onBlur={handleScanBlur}
                   placeholder="Escanee con el lector o escriba el nombre..."
                   autoComplete="off"
+                  style={{ fontSize: 16, padding: '12px 14px' }}
                 />
               </div>
               {suggestions.length > 0 && (
@@ -262,52 +463,81 @@ export default function POS() {
             {scanError && <div className="alert alert-danger" style={{ marginTop: 12 }}>{scanError}</div>}
           </div>
 
-          {quickProducts.length > 0 && (
-            <div className="card">
-              <h3 className="mt-0" style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
-                Accesos rápidos
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-                {quickProducts.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ flexDirection: 'column', height: 'auto', padding: '10px 8px', textAlign: 'center', lineHeight: 1.3 }}
-                    onClick={() => addProductToCart(p)}
-                  >
-                    <span style={{ fontWeight: 700 }}>{p.nombre}</span>
-                    <span className="text-muted" style={{ fontSize: 12 }}>{formatCurrency(p.precio_venta)}</span>
+          <div className="card pos-products-card">
+            <div className="category-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={'category-tab' + (activeTab === tab.key ? ' active' : '')}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {tabProducts.length === 0 ? (
+              <div className="empty-state">
+                {activeTab === 'quick'
+                  ? 'No hay productos marcados como acceso rápido. Marcalos desde Inventario.'
+                  : 'No hay productos en esta categoría.'}
+              </div>
+            ) : (
+              <div className="product-grid">
+                {tabProducts.map((p) => (
+                  <button key={p.id} type="button" className="product-tile" onClick={() => addProductToCart(p)}>
+                    {p.existencia <= p.existencia_minima && (
+                      <span className="badge badge-danger product-tile-badge">Bajo</span>
+                    )}
+                    <span className="product-tile-name">{p.nombre}</span>
+                    <span className="product-tile-price">{formatCurrency(p.precio_venta)}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
 
+        <div className="pos-side-panel">
           <div className="card">
+            <div className="flex justify-between items-center" style={{ marginBottom: cart.length ? 10 : 0 }}>
+              <h3 className="mt-0" style={{ margin: 0 }}>🛒 Carrito</h3>
+              {cart.length > 0 && (
+                <span className="text-muted">{cart.length} producto{cart.length !== 1 ? 's' : ''}</span>
+              )}
+            </div>
             {cart.length === 0 ? (
-              <div className="empty-state">El carrito está vacío. Escaneá un producto para comenzar.</div>
+              <div className="empty-state">El carrito está vacío. Escaneá o tocá un producto para comenzar.</div>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Precio</th>
-                    <th>Cant.</th>
-                    <th>Desc. ₡</th>
-                    <th>IVA</th>
-                    <th className="text-right">Total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((line) => {
-                    const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
-                    return (
-                      <tr key={line.producto.id}>
-                        <td>{line.producto.nombre}</td>
-                        <td>{formatCurrency(line.producto.precio_venta)}</td>
-                        <td style={{ width: 90 }}>
+              <div className="cart-list">
+                {cart.map((line) => {
+                  const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
+                  return (
+                    <div
+                      key={line.producto.id}
+                      className={
+                        'cart-item' +
+                        (justAddedId === line.producto.id ? ' cart-item-flash' : '') +
+                        (selectedProductId === line.producto.id ? ' cart-item-selected' : '')
+                      }
+                      onClick={() => setSelectedProductId(line.producto.id)}
+                    >
+                      <div className="cart-item-top">
+                        <span className="cart-item-name">{line.producto.nombre}</span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => removeLine(line.producto.id)}
+                          title="Quitar del carrito"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      <div className="cart-item-mid">
+                        <div className="qty-stepper">
+                          <button type="button" className="qty-btn" onClick={() => stepQuantity(line.producto.id, -1)}>
+                            −
+                          </button>
                           <input
                             type="number"
                             step="0.1"
@@ -315,8 +545,16 @@ export default function POS() {
                             value={line.cantidad}
                             onChange={(e) => updateQuantity(line.producto.id, Number(e.target.value))}
                           />
-                        </td>
-                        <td style={{ width: 90 }}>
+                          <button type="button" className="qty-btn" onClick={() => stepQuantity(line.producto.id, 1)}>
+                            +
+                          </button>
+                        </div>
+                        <span className="cart-item-total">{formatCurrency(lineTotal)}</span>
+                      </div>
+                      <div className="cart-item-sub">
+                        <span>{formatCurrency(line.producto.precio_venta)} c/u · IVA {line.producto.tarifa_iva}%</span>
+                        <label className="cart-item-discount" title="Descuento en colones">
+                          🏷️
                           <input
                             type="number"
                             step="1"
@@ -324,47 +562,28 @@ export default function POS() {
                             value={line.descuento}
                             onChange={(e) => updateDiscount(line.producto.id, Number(e.target.value))}
                           />
-                        </td>
-                        <td>{line.producto.tarifa_iva}%</td>
-                        <td className="text-right">{formatCurrency(lineTotal)}</td>
-                        <td>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => removeLine(line.producto.id)}
-                          >
-                            Quitar
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </label>
+                      </div>
+                      {discounts.length > 0 && (
+                        <select
+                          className="cart-item-discount-preset"
+                          value=""
+                          onChange={(e) => aplicarDescuentoPreset(line.producto, line.cantidad, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="">🏷️ Aplicar descuento predefinido...</option>
+                          {discounts.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nombre} ({d.tipo === 'porcentaje' ? `${d.valor}%` : formatCurrency(d.valor)})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-          </div>
-        </div>
-
-        <div>
-          <div className="card">
-            <h3 className="mt-0">Cliente</h3>
-            <input
-              type="text"
-              placeholder="Buscar cliente (opcional)..."
-              value={customerSearch}
-              onChange={(e) => {
-                setCustomerSearch(e.target.value);
-                loadCustomers(e.target.value);
-              }}
-              style={{ marginBottom: 8 }}
-            />
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">Sin cliente (venta general)</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre} {c.identificacion ? `(${c.identificacion})` : ''}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="card">
@@ -385,14 +604,18 @@ export default function POS() {
 
           <div className="card">
             <h3 className="mt-0">Pago</h3>
-            <div className="form-group">
-              <label>Método de pago</label>
-              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="sinpe">SINPE Móvil</option>
-                <option value="fiado">Fiado (crédito)</option>
-              </select>
+            <div className="payment-options">
+              {PAYMENT_METHODS.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  className={'payment-option' + (paymentMethod === m.value ? ' active' : '')}
+                  onClick={() => setPaymentMethod(m.value)}
+                >
+                  {m.label}
+                  <span className="payment-option-key">{m.shortcut}</span>
+                </button>
+              ))}
             </div>
             {paymentMethod === 'efectivo' && (
               <div className="form-group">
@@ -415,7 +638,7 @@ export default function POS() {
             )}
             <button
               className="btn"
-              style={{ width: '100%', marginTop: 8 }}
+              style={{ width: '100%', marginTop: 8, fontSize: 16, padding: '14px 16px' }}
               disabled={cart.length === 0 || processing}
               onClick={handleCheckout}
             >
@@ -429,6 +652,11 @@ export default function POS() {
             >
               Cancelar venta
             </button>
+            <p className="text-muted keyboard-hint">
+              F1-F4 pago · Enter/F9 cobrar · Esc cancelar
+              <br />
+              ↑↓ elegir producto · +/− cantidad · Supr quitar
+            </p>
           </div>
         </div>
       </div>
@@ -440,6 +668,7 @@ function Receipt({ sale, cashier, onNewSale }) {
   const [imprimiendo, setImprimiendo] = useState(false);
   const [errorImpresion, setErrorImpresion] = useState('');
   const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
+  const autoPrinted = useRef(false);
 
   async function imprimir() {
     setErrorImpresion('');
@@ -453,6 +682,15 @@ function Receipt({ sale, cashier, onNewSale }) {
       setImprimiendo(false);
     }
   }
+
+  useEffect(() => {
+    if (autoPrinted.current) return;
+    if (tieneAPIImpresion && getAutoPrint()) {
+      autoPrinted.current = true;
+      imprimir();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
