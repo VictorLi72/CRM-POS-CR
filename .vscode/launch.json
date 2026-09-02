@@ -1,0 +1,39 @@
+{
+    // Configuraciones para levantar el CRM desde el panel "Run and Debug" de VS Code
+    // (Ctrl+Shift+D), sin tener que escribir los comandos a mano.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "request": "launch",
+            "name": "Backend: iniciar servidor (Java)",
+            "mainClass": "com.crmsuper.pos.PosBackendApplication",
+            "projectName": "pos-backend",
+            "cwd": "${workspaceFolder}/backend"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Frontend: iniciar app (Electron)",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "cwd": "${workspaceFolder}/frontend",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "(Opcional) Depurar frontend en Chrome",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/frontend"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "▶ Iniciar todo (backend + app)",
+            "configurations": ["Backend: iniciar servidor (Java)", "Frontend: iniciar app (Electron)"],
+            "stopAll": true
+        }
+    ]
+}
