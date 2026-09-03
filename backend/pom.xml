@@ -20,6 +20,7 @@
   <properties>
     <java.version>17</java.version>
     <jjwt.version>0.12.6</jjwt.version>
+    <skipFrontend>false</skipFrontend>
   </properties>
 
   <dependencies>
@@ -80,6 +81,37 @@
   <build>
     <finalName>pos-backend</finalName>
     <plugins>
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+        <version>1.15.1</version>
+        <configuration>
+          <workingDirectory>${project.basedir}/../frontend</workingDirectory>
+          <installDirectory>${project.basedir}/.node</installDirectory>
+          <nodeVersion>v20.15.1</nodeVersion>
+          <skip>${skipFrontend}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>install-node-and-npm</id>
+            <goals><goal>install-node-and-npm</goal></goals>
+            <phase>generate-resources</phase>
+          </execution>
+          <execution>
+            <id>npm-install</id>
+            <goals><goal>npm</goal></goals>
+            <phase>generate-resources</phase>
+          </execution>
+          <execution>
+            <id>npm-build</id>
+            <goals><goal>npm</goal></goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run build</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

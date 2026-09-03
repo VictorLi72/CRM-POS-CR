@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app-completa",
+      "runtimeExecutable": "C:\\Users\\victo\\AppData\\Local\\dev-tools\\jdk-17\\bin\\java.exe",
+      "runtimeArgs": [
+        "-jar",
+        "D:\\CRM-POS-CR\\backend\\target\\pos-backend.jar"
+      ],
+      "port": 4000,
+      "url": "http://localhost:4000"
+    },
+    {
+      "name": "frontend-vite",
+      "runtimeExecutable": "C:\\Users\\victo\\AppData\\Local\\dev-tools\\node\\node.exe",
+      "runtimeArgs": [
+        "D:\\CRM-POS-CR\\frontend\\node_modules\\vite\\bin\\vite.js",
+        "D:\\CRM-POS-CR\\frontend"
+      ],
+      "port": 5173
+    }
+  ]
+}

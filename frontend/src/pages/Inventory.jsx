@@ -274,23 +274,92 @@ export default function Inventory() {
 
 function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
   const [form, setForm] = useState(product);
+  const [existingMatch, setExistingMatch] = useState(null);
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [ventaTocada, setVentaTocada] = useState(false);
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
+
+  // Sugiere el precio de venta como costo + IVA (margen 0%, el mínimo para no
+  // perder plata) mientras se está creando un producto nuevo, mientras el
+  // usuario no haya escrito ese campo a mano — si lo edita, dejamos de
+  // pisárselo con el cálculo.
+  useEffect(() => {
+    if (form.id || ventaTocada) return;
+    const costo = Number(form.precio_costo) || 0;
+    const iva = Number(form.tarifa_iva) || 0;
+    const sugerido = Math.round(costo * (1 + iva / 100) * 100) / 100;
+    setForm((prev) => ({ ...prev, precio_venta: sugerido }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.precio_costo, form.tarifa_iva, form.id, ventaTocada]);
+
+  // Mientras se crea un producto nuevo, busca en segundo plano si el código
+  // de barras ya pertenece a otro producto, para avisar antes de intentar
+  // guardar (y no chocar recién al mandar el formulario).
+  useEffect(() => {
+    if (form.id) return; // al editar, el código puede coincidir consigo mismo
+    const codigo = (form.codigo_barras || '').trim();
+    if (!codigo) {
+      setExistingMatch(null);
+      return;
+    }
+    setCheckingCode(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/products/barcode/${encodeURIComponent(codigo)}`);
+        setExistingMatch(res.data);
+      } catch {
+        setExistingMatch(null);
+      } finally {
+        setCheckingCode(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.codigo_barras, form.id]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{form.id ? 'Editar producto' : 'Nuevo producto'}</h2>
         <div className="form-group">
-          <label>Nombre</label>
-          <input type="text" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} autoFocus />
+          <label>Código de barras</label>
+          <input
+            type="text"
+            value={form.codigo_barras || ''}
+            onChange={(e) => set('codigo_barras', e.target.value)}
+            autoFocus
+            placeholder="Escaneá o escribí el código..."
+          />
+          {checkingCode && <small className="text-muted">Buscando...</small>}
+          {existingMatch && (
+            <div className="alert alert-danger" style={{ marginTop: 8 }}>
+              Ese código ya es de <strong>{existingMatch.nombre}</strong> (₡{existingMatch.precio_venta}).{' '}
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ marginLeft: 8 }}
+                onClick={() => {
+                  setForm(existingMatch);
+                  setExistingMatch(null);
+                }}
+              >
+                Editar ese producto
+              </button>
+            </div>
+          )}
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Código de barras</label>
-            <input type="text" value={form.codigo_barras || ''} onChange={(e) => set('codigo_barras', e.target.value)} />
+            <label>Nombre (opcional)</label>
+            <input
+              type="text"
+              value={form.nombre}
+              onChange={(e) => set('nombre', e.target.value)}
+              placeholder="Si lo dejás vacío, se usa el código de barras"
+            />
           </div>
           <div className="form-group">
             <label>Categoría</label>
@@ -309,7 +378,18 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
           </div>
           <div className="form-group">
             <label>Precio de venta (con IVA)</label>
-            <input type="number" step="0.01" value={form.precio_venta} onChange={(e) => set('precio_venta', Number(e.target.value))} />
+            <input
+              type="number"
+              step="0.01"
+              value={form.precio_venta}
+              onChange={(e) => {
+                setVentaTocada(true);
+                set('precio_venta', Number(e.target.value));
+              }}
+            />
+            {!form.id && !ventaTocada && (
+              <small className="text-muted">Sugerido: costo + IVA (sin ganancia). Editalo para agregar margen.</small>
+            )}
           </div>
           <div className="form-group">
             <label>IVA</label>

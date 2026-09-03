@@ -1,5 +1,7 @@
 package com.crmsuper.pos.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -11,6 +13,11 @@ public class ProductoResponse {
     private final String categoriaNombre;
     private final BigDecimal precioCosto;
     private final BigDecimal precioVenta;
+    private final BigDecimal precioEfectivo;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final BigDecimal precioVentaOriginal;
+
     private final BigDecimal tarifaIva;
     private final String codigoCabys;
     private final String unidadMedida;
@@ -22,10 +29,10 @@ public class ProductoResponse {
     private final Instant actualizadoEn;
 
     public ProductoResponse(Long id, String codigoBarras, String nombre, Long categoriaId, String categoriaNombre,
-                             BigDecimal precioCosto, BigDecimal precioVenta, BigDecimal tarifaIva,
-                             String codigoCabys, String unidadMedida, BigDecimal existencia,
-                             BigDecimal existenciaMinima, boolean accesoRapido, boolean activo, Instant creadoEn,
-                             Instant actualizadoEn) {
+                             BigDecimal precioCosto, BigDecimal precioVenta, BigDecimal precioEfectivo,
+                             BigDecimal precioVentaOriginal, BigDecimal tarifaIva, String codigoCabys,
+                             String unidadMedida, BigDecimal existencia, BigDecimal existenciaMinima,
+                             boolean accesoRapido, boolean activo, Instant creadoEn, Instant actualizadoEn) {
         this.id = id;
         this.codigoBarras = codigoBarras;
         this.nombre = nombre;
@@ -33,6 +40,8 @@ public class ProductoResponse {
         this.categoriaNombre = categoriaNombre;
         this.precioCosto = precioCosto;
         this.precioVenta = precioVenta;
+        this.precioEfectivo = precioEfectivo;
+        this.precioVentaOriginal = precioVentaOriginal;
         this.tarifaIva = tarifaIva;
         this.codigoCabys = codigoCabys;
         this.unidadMedida = unidadMedida;
@@ -74,6 +83,14 @@ public class ProductoResponse {
 
     public BigDecimal getPrecioVenta() {
         return precioVenta;
+    }
+
+    public BigDecimal getPrecioEfectivo() {
+        return precioEfectivo;
+    }
+
+    public BigDecimal getPrecioVentaOriginal() {
+        return precioVentaOriginal;
     }
 
     public BigDecimal getTarifaIva() {
@@ -120,6 +137,8 @@ public class ProductoResponse {
         private String categoriaNombre;
         private BigDecimal precioCosto;
         private BigDecimal precioVenta;
+        private BigDecimal precioEfectivo;
+        private BigDecimal precioVentaOriginal;
         private BigDecimal tarifaIva;
         private String codigoCabys;
         private String unidadMedida;
@@ -162,6 +181,16 @@ public class ProductoResponse {
 
         public Builder precioVenta(BigDecimal precioVenta) {
             this.precioVenta = precioVenta;
+            return this;
+        }
+
+        public Builder precioEfectivo(BigDecimal precioEfectivo) {
+            this.precioEfectivo = precioEfectivo;
+            return this;
+        }
+
+        public Builder precioVentaOriginal(BigDecimal precioVentaOriginal) {
+            this.precioVentaOriginal = precioVentaOriginal;
             return this;
         }
 
@@ -212,8 +241,8 @@ public class ProductoResponse {
 
         public ProductoResponse build() {
             return new ProductoResponse(id, codigoBarras, nombre, categoriaId, categoriaNombre, precioCosto,
-                    precioVenta, tarifaIva, codigoCabys, unidadMedida, existencia, existenciaMinima, accesoRapido,
-                    activo, creadoEn, actualizadoEn);
+                    precioVenta, precioEfectivo, precioVentaOriginal, tarifaIva, codigoCabys, unidadMedida,
+                    existencia, existenciaMinima, accesoRapido, activo, creadoEn, actualizadoEn);
         }
     }
 }

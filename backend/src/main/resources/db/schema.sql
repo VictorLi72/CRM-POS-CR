@@ -272,3 +272,22 @@ CREATE TABLE IF NOT EXISTS bitacora (
 
 CREATE INDEX idx_bitacora_creado_en ON bitacora(creado_en);
 CREATE INDEX idx_bitacora_usuario ON bitacora(usuario_id);
+
+-- ----------------------------------------------------------------------------
+-- promociones (rebaja automática por producto, vigente por rango de fechas)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS promociones (
+  id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+  producto_id    BIGINT NOT NULL,
+  tipo           VARCHAR(20) NOT NULL,
+  valor          DECIMAL(12,2) NOT NULL,
+  fecha_inicio   DATE NOT NULL,
+  fecha_fin      DATE NOT NULL,
+  activo         TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_promociones_producto FOREIGN KEY (producto_id) REFERENCES productos(id),
+  CONSTRAINT chk_promociones_tipo CHECK (tipo IN ('porcentaje', 'precio_fijo'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_promociones_producto ON promociones(producto_id);
+CREATE INDEX idx_promociones_vigencia ON promociones(fecha_inicio, fecha_fin);

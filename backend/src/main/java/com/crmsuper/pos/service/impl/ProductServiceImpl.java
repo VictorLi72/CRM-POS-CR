@@ -9,8 +9,10 @@ import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.Categoria;
 import com.crmsuper.pos.model.MovimientoInventario;
 import com.crmsuper.pos.model.Producto;
+import com.crmsuper.pos.model.Promocion;
 import com.crmsuper.pos.model.enums.TipoAccion;
 import com.crmsuper.pos.model.enums.TipoMovimiento;
+import com.crmsuper.pos.model.enums.TipoPromocion;
 import com.crmsuper.pos.repository.CategoriaRepository;
 import com.crmsuper.pos.repository.MovimientoInventarioRepository;
 import com.crmsuper.pos.repository.ProductoRepository;
@@ -18,6 +20,9 @@ import com.crmsuper.pos.repository.UsuarioRepository;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.AuditoriaService;
 import com.crmsuper.pos.service.ProductService;
+import com.crmsuper.pos.service.PromocionService;
+import com.crmsuper.pos.util.CrDateUtils;
+import com.crmsuper.pos.util.PromocionUtils;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -26,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -35,6 +41,7 @@ public class ProductServiceImpl implements ProductService {
     private final MovimientoInventarioRepository movimientoInventarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final AuditoriaService auditoriaService;
+    private final PromocionService promocionService;
     private final NamedParameterJdbcTemplate jdbc;
 
     public ProductServiceImpl(
@@ -43,6 +50,7 @@ public class ProductServiceImpl implements ProductService {
             MovimientoInventarioRepository movimientoInventarioRepository,
             UsuarioRepository usuarioRepository,
             AuditoriaService auditoriaService,
+            PromocionService promocionService,
             NamedParameterJdbcTemplate jdbc
     ) {
         this.productoRepository = productoRepository;
@@ -50,6 +58,7 @@ public class ProductServiceImpl implements ProductService {
         this.movimientoInventarioRepository = movimientoInventarioRepository;
         this.usuarioRepository = usuarioRepository;
         this.auditoriaService = auditoriaService;
+        this.promocionService = promocionService;
         this.jdbc = jdbc;
     }
 
@@ -95,11 +104,19 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductoResponse> listar(String search, Boolean lowStock, Long categoryId, Boolean quickAccess, BigDecimal tarifaIva) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT p.*, c.nombre AS categoria_nombre FROM productos p " +
-                        "LEFT JOIN categorias c ON c.id = p.categoria_id WHERE p.activo = 1"
-        );
-        MapSqlParameterSource params = new MapSqlParameterSource();
+        StringBuilder sql = new StringBuilder("""
+                SELECT p.*, c.nombre AS categoria_nombre, promo.tipo AS promo_tipo, promo.valor AS promo_valor
+                FROM productos p
+                LEFT JOIN categorias c ON c.id = p.categoria_id
+                LEFT JOIN promociones promo ON promo.id = (
+                    SELECT pr.id FROM promociones pr
+                    WHERE pr.producto_id = p.id AND pr.activo = 1
+                      AND pr.fecha_inicio <= :hoy AND pr.fecha_fin >= :hoy
+                    ORDER BY pr.id DESC LIMIT 1
+                )
+                WHERE p.activo = 1
+                """);
+        MapSqlParameterSource params = new MapSqlParameterSource("hoy", CrDateUtils.hoy());
         if (search != null && !search.isBlank()) {
             sql.append(" AND (p.nombre LIKE :search OR p.codigo_barras LIKE :search)");
             params.addValue("search", "%" + search + "%");
@@ -120,24 +137,37 @@ public class ProductServiceImpl implements ProductService {
         }
         sql.append(" ORDER BY p.nombre");
 
-        return jdbc.query(sql.toString(), params, (rs, rowNum) -> ProductoResponse.builder()
-                .id(rs.getLong("id"))
-                .codigoBarras(rs.getString("codigo_barras"))
-                .nombre(rs.getString("nombre"))
-                .categoriaId(rs.getObject("categoria_id") != null ? rs.getLong("categoria_id") : null)
-                .categoriaNombre(rs.getString("categoria_nombre"))
-                .precioCosto(rs.getBigDecimal("precio_costo"))
-                .precioVenta(rs.getBigDecimal("precio_venta"))
-                .tarifaIva(rs.getBigDecimal("tarifa_iva"))
-                .codigoCabys(rs.getString("codigo_cabys"))
-                .unidadMedida(rs.getString("unidad_medida"))
-                .existencia(rs.getBigDecimal("existencia"))
-                .existenciaMinima(rs.getBigDecimal("existencia_minima"))
-                .accesoRapido(rs.getBoolean("acceso_rapido"))
-                .activo(rs.getBoolean("activo"))
-                .creadoEn(rs.getTimestamp("creado_en").toInstant())
-                .actualizadoEn(rs.getTimestamp("actualizado_en").toInstant())
-                .build());
+        return jdbc.query(sql.toString(), params, (rs, rowNum) -> {
+            BigDecimal precioVenta = rs.getBigDecimal("precio_venta");
+            String promoTipo = rs.getString("promo_tipo");
+            BigDecimal precioEfectivo = precioVenta;
+            BigDecimal precioOriginal = null;
+            if (promoTipo != null) {
+                precioEfectivo = PromocionUtils.precioEfectivo(
+                        precioVenta, TipoPromocion.valueOf(promoTipo), rs.getBigDecimal("promo_valor"));
+                precioOriginal = precioVenta;
+            }
+            return ProductoResponse.builder()
+                    .id(rs.getLong("id"))
+                    .codigoBarras(rs.getString("codigo_barras"))
+                    .nombre(rs.getString("nombre"))
+                    .categoriaId(rs.getObject("categoria_id") != null ? rs.getLong("categoria_id") : null)
+                    .categoriaNombre(rs.getString("categoria_nombre"))
+                    .precioCosto(rs.getBigDecimal("precio_costo"))
+                    .precioVenta(precioVenta)
+                    .precioEfectivo(precioEfectivo)
+                    .precioVentaOriginal(precioOriginal)
+                    .tarifaIva(rs.getBigDecimal("tarifa_iva"))
+                    .codigoCabys(rs.getString("codigo_cabys"))
+                    .unidadMedida(rs.getString("unidad_medida"))
+                    .existencia(rs.getBigDecimal("existencia"))
+                    .existenciaMinima(rs.getBigDecimal("existencia_minima"))
+                    .accesoRapido(rs.getBoolean("acceso_rapido"))
+                    .activo(rs.getBoolean("activo"))
+                    .creadoEn(rs.getTimestamp("creado_en").toInstant())
+                    .actualizadoEn(rs.getTimestamp("actualizado_en").toInstant())
+                    .build();
+        });
     }
 
     @Override
@@ -157,16 +187,25 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductoResponse crear(ProductoRequest request, AuthenticatedUser usuario) {
-        if (request.getNombre() == null || request.getNombre().isBlank() || request.getPrecioVenta() == null) {
-            throw ApiException.badRequest("Nombre y precio de venta son requeridos");
+        if (request.getPrecioVenta() == null) {
+            throw ApiException.badRequest("El precio de venta es requerido");
         }
-        if (request.getCodigoBarras() != null && !request.getCodigoBarras().isBlank()
-                && productoRepository.existsByCodigoBarras(request.getCodigoBarras())) {
+        String codigoBarras = blankToNull(request.getCodigoBarras());
+        // El nombre es opcional al crear (se prioriza escanear el código de
+        // barras primero): si no lo escriben, se usa el código de barras como
+        // nombre temporal, editable después desde "Editar producto".
+        String nombre = (request.getNombre() != null && !request.getNombre().isBlank())
+                ? request.getNombre().trim()
+                : codigoBarras;
+        if (nombre == null) {
+            throw ApiException.badRequest("Se requiere un código de barras o un nombre");
+        }
+        if (codigoBarras != null && productoRepository.existsByCodigoBarras(codigoBarras)) {
             throw ApiException.badRequest("No se pudo crear el producto (código de barras duplicado?)");
         }
         Producto producto = Producto.builder()
-                .codigoBarras(blankToNull(request.getCodigoBarras()))
-                .nombre(request.getNombre().trim())
+                .codigoBarras(codigoBarras)
+                .nombre(nombre)
                 .categoria(request.getCategoriaId() != null ? categoriaRepository.getReferenceById(request.getCategoriaId()) : null)
                 .precioCosto(request.getPrecioCosto() != null ? request.getPrecioCosto() : BigDecimal.ZERO)
                 .precioVenta(request.getPrecioVenta())
@@ -286,6 +325,10 @@ public class ProductServiceImpl implements ProductService {
 
     private ProductoResponse toResponse(Producto p) {
         Categoria categoria = p.getCategoria();
+        Optional<Promocion> promo = promocionService.promoVigentePara(p.getId());
+        BigDecimal precioEfectivo = promo.map(pr -> PromocionUtils.precioEfectivo(p.getPrecioVenta(), pr))
+                .orElse(p.getPrecioVenta());
+        BigDecimal precioOriginal = promo.isPresent() ? p.getPrecioVenta() : null;
         return ProductoResponse.builder()
                 .id(p.getId())
                 .codigoBarras(p.getCodigoBarras())
@@ -294,6 +337,8 @@ public class ProductServiceImpl implements ProductService {
                 .categoriaNombre(categoria != null ? categoria.getNombre() : null)
                 .precioCosto(p.getPrecioCosto())
                 .precioVenta(p.getPrecioVenta())
+                .precioEfectivo(precioEfectivo)
+                .precioVentaOriginal(precioOriginal)
                 .tarifaIva(p.getTarifaIva())
                 .codigoCabys(p.getCodigoCabys())
                 .unidadMedida(p.getUnidadMedida())

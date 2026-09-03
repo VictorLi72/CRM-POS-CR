@@ -57,6 +57,9 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // archivos estáticos del frontend (React)
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+
                         // públicas
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
@@ -103,6 +106,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/discounts/*").hasAnyRole(ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/discounts/*").hasAnyRole(ADMIN)
                         .requestMatchers("/api/discounts/**").authenticated()
+
+                        // promociones: cualquiera autenticado lee, admin/supervisor administran
+                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasAnyRole(ADMIN_SUPERVISOR)
+                        .requestMatchers(HttpMethod.PUT, "/api/promotions/*").hasAnyRole(ADMIN_SUPERVISOR)
+                        .requestMatchers(HttpMethod.DELETE, "/api/promotions/*").hasAnyRole(ADMIN_SUPERVISOR)
+                        .requestMatchers("/api/promotions/**").authenticated()
 
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
