@@ -2,15 +2,14 @@ package com.crmsuper.pos.service.impl;
 
 import com.crmsuper.pos.dto.*;
 import com.crmsuper.pos.service.ReportService;
+import com.crmsuper.pos.util.CrDateUtils;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -37,14 +36,10 @@ public class ReportServiceImpl implements ReportService {
         this.jdbc = jdbc;
     }
 
-    private static LocalDate hoyCR() {
-        return Instant.now().minusSeconds(6 * 3600).atZone(ZoneOffset.UTC).toLocalDate();
-    }
-
     @Override
     @Transactional(readOnly = true)
     public DashboardSummaryResponse summary() {
-        LocalDate hoy = hoyCR();
+        LocalDate hoy = CrDateUtils.hoy();
         MapSqlParameterSource hoyParams = new MapSqlParameterSource("hoy", hoy.format(YYYY_MM_DD));
         MapSqlParameterSource mesParams = new MapSqlParameterSource("mes", hoy.format(YYYY_MM));
 

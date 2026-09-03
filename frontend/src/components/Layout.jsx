@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/sales-history', label: 'Historial de ventas', icon: '📜', roles: ['administrador', 'supervisor'] },
   { to: '/cash-register', label: 'Cierre de caja', icon: '🗄️', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/reports', label: 'Reportes', icon: '📊', roles: ['administrador', 'supervisor'] },
+  { to: '/promotions', label: 'Promociones', icon: '🏷️', roles: ['administrador', 'supervisor'] },
   { to: '/tax-discounts', label: 'IVA y Descuentos', icon: '💲', roles: ['administrador'] },
   { to: '/users', label: 'Usuarios', icon: '🔑', roles: ['administrador'] },
   { to: '/settings', label: 'Configuración', icon: '⚙️', roles: ['administrador', 'supervisor', 'cajero'] },

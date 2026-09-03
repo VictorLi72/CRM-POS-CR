@@ -10,8 +10,10 @@ import com.crmsuper.pos.model.enums.TipoMovimiento;
 import com.crmsuper.pos.repository.*;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.AuditoriaService;
+import com.crmsuper.pos.service.PromocionService;
 import com.crmsuper.pos.service.SaleService;
 import com.crmsuper.pos.util.MoneyUtils;
+import com.crmsuper.pos.util.PromocionUtils;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class SaleServiceImpl implements SaleService {
     private final DevolucionItemRepository devolucionItemRepository;
     private final FolioCounterRepository folioCounterRepository;
     private final AuditoriaService auditoriaService;
+    private final PromocionService promocionService;
     private final NamedParameterJdbcTemplate jdbc;
 
     public SaleServiceImpl(
@@ -58,6 +61,7 @@ public class SaleServiceImpl implements SaleService {
             DevolucionItemRepository devolucionItemRepository,
             FolioCounterRepository folioCounterRepository,
             AuditoriaService auditoriaService,
+            PromocionService promocionService,
             NamedParameterJdbcTemplate jdbc
     ) {
         this.ventaRepository = ventaRepository;
@@ -70,6 +74,7 @@ public class SaleServiceImpl implements SaleService {
         this.devolucionItemRepository = devolucionItemRepository;
         this.folioCounterRepository = folioCounterRepository;
         this.auditoriaService = auditoriaService;
+        this.promocionService = promocionService;
         this.jdbc = jdbc;
     }
 
@@ -97,7 +102,14 @@ public class SaleServiceImpl implements SaleService {
                 throw ApiException.badRequest(
                         "Stock insuficiente para \"" + producto.getNombre() + "\" (disponible: " + producto.getExistencia() + ")");
             }
-            BigDecimal precioUnitario = it.getPrecioUnitario() != null ? it.getPrecioUnitario() : producto.getPrecioVenta();
+            // Si el frontend no manda un precio explícito, se usa el precio
+            // efectivo (con la promoción vigente aplicada, si el producto
+            // tiene una) en vez del precio de catálogo a secas.
+            BigDecimal precioUnitario = it.getPrecioUnitario() != null
+                    ? it.getPrecioUnitario()
+                    : promocionService.promoVigentePara(producto.getId())
+                            .map(promo -> PromocionUtils.precioEfectivo(producto.getPrecioVenta(), promo))
+                            .orElse(producto.getPrecioVenta());
             BigDecimal descuentoLinea = it.getDescuento() != null ? it.getDescuento() : BigDecimal.ZERO;
             BigDecimal baseLinea = precioUnitario.multiply(it.getCantidad()).subtract(descuentoLinea);
             // El precio de venta ya incluye el IVA (práctica común en tiquetes de súper en CR).

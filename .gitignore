@@ -10,6 +10,12 @@ node_modules/
 dist/
 release/
 
+# Frontend compilado dentro del backend (generado por mvn package)
+backend/src/main/resources/static/
+
+# Node descargado por frontend-maven-plugin
+backend/.node/
+
 # Variables de entorno con secretos
 .env
 

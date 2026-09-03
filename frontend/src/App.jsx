@@ -9,6 +9,7 @@ import CashRegister from './pages/CashRegister.jsx';
 import Reports from './pages/Reports.jsx';
 import Users from './pages/Users.jsx';
 import TaxAndDiscounts from './pages/TaxAndDiscounts.jsx';
+import Promotions from './pages/Promotions.jsx';
 import Settings from './pages/Settings.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
@@ -78,6 +79,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={['administrador']}>
             <TaxAndDiscounts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/promotions"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor']}>
+            <Promotions />
           </ProtectedRoute>
         }
       />

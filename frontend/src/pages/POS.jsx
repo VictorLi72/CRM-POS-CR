@@ -179,7 +179,7 @@ export default function POS() {
   function aplicarDescuentoPreset(producto, cantidad, descuentoId) {
     const preset = discounts.find((d) => String(d.id) === descuentoId);
     if (!preset) return;
-    const base = producto.precio_venta * cantidad;
+    const base = producto.precio_efectivo * cantidad;
     const monto = preset.tipo === 'porcentaje' ? REDONDEAR(base * (preset.valor / 100)) : preset.valor;
     updateDiscount(producto.id, monto);
   }
@@ -269,10 +269,12 @@ export default function POS() {
   }
 
   function updateQuantity(productId, cantidad) {
+    if (cantidad <= 0) {
+      removeLine(productId);
+      return;
+    }
     setCart((prev) =>
-      prev.map((line) =>
-        line.producto.id === productId ? { ...line, cantidad: Math.max(0.1, cantidad) } : line
-      )
+      prev.map((line) => (line.producto.id === productId ? { ...line, cantidad } : line))
     );
   }
 
@@ -306,7 +308,7 @@ export default function POS() {
 
   const totals = cart.reduce(
     (acc, line) => {
-      const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
+      const lineTotal = Math.max(0, line.producto.precio_efectivo * line.cantidad - line.descuento);
       const sinIva = lineTotal / (1 + line.producto.tarifa_iva / 100);
       const iva = lineTotal - sinIva;
       acc.subtotal += sinIva;
@@ -342,7 +344,7 @@ export default function POS() {
         items: cart.map((line) => ({
           producto_id: line.producto.id,
           cantidad: line.cantidad,
-          precio_unitario: line.producto.precio_venta,
+          precio_unitario: line.producto.precio_efectivo,
           descuento: line.descuento,
         })),
         cliente_id: customerId || null,
@@ -454,7 +456,14 @@ export default function POS() {
                       onMouseDown={(e) => e.preventDefault()}
                     >
                       <span>{p.nombre}</span>
-                      <span className="text-muted">{formatCurrency(p.precio_venta)} · existencia {p.existencia}</span>
+                      <span className="text-muted">
+                        {p.precio_venta_original && (
+                          <span style={{ textDecoration: 'line-through', marginRight: 4 }}>
+                            {formatCurrency(p.precio_venta_original)}
+                          </span>
+                        )}
+                        {formatCurrency(p.precio_efectivo)} · existencia {p.existencia}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -489,8 +498,20 @@ export default function POS() {
                     {p.existencia <= p.existencia_minima && (
                       <span className="badge badge-danger product-tile-badge">Bajo</span>
                     )}
+                    {p.precio_venta_original && (
+                      <span className="badge badge-success product-tile-badge" style={{ right: 'auto', left: 8 }}>
+                        🏷️ Promo
+                      </span>
+                    )}
                     <span className="product-tile-name">{p.nombre}</span>
-                    <span className="product-tile-price">{formatCurrency(p.precio_venta)}</span>
+                    <span className="product-tile-price">
+                      {p.precio_venta_original && (
+                        <span className="text-muted" style={{ textDecoration: 'line-through', marginRight: 6, fontWeight: 400 }}>
+                          {formatCurrency(p.precio_venta_original)}
+                        </span>
+                      )}
+                      {formatCurrency(p.precio_efectivo)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -511,7 +532,7 @@ export default function POS() {
             ) : (
               <div className="cart-list">
                 {cart.map((line) => {
-                  const lineTotal = Math.max(0, line.producto.precio_venta * line.cantidad - line.descuento);
+                  const lineTotal = Math.max(0, line.producto.precio_efectivo * line.cantidad - line.descuento);
                   return (
                     <div
                       key={line.producto.id}
@@ -552,7 +573,14 @@ export default function POS() {
                         <span className="cart-item-total">{formatCurrency(lineTotal)}</span>
                       </div>
                       <div className="cart-item-sub">
-                        <span>{formatCurrency(line.producto.precio_venta)} c/u · IVA {line.producto.tarifa_iva}%</span>
+                        <span>
+                          {line.producto.precio_venta_original && (
+                            <span className="text-muted" style={{ textDecoration: 'line-through', marginRight: 4, fontWeight: 400, fontSize: '0.82em' }}>
+                              {formatCurrency(line.producto.precio_venta_original)}
+                            </span>
+                          )}
+                          {formatCurrency(line.producto.precio_efectivo)} c/u · IVA {line.producto.tarifa_iva}%
+                        </span>
                         <label className="cart-item-discount" title="Descuento en colones">
                           🏷️
                           <input
