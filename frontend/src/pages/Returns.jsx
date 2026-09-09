@@ -12,6 +12,11 @@ export default function Returns() {
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
 
+  function parsearFolio(input) {
+    const match = input.trim().match(/^CRM-\d{6}-(\d+)$/i);
+    return match ? String(Number(match[1])) : input.trim();
+  }
+
   async function buscarVenta(e) {
     e.preventDefault();
     if (!folio.trim()) return;
@@ -20,7 +25,7 @@ export default function Returns() {
     setVenta(null);
     setLoading(true);
     try {
-      const res = await api.get(`/sales/by-folio/${encodeURIComponent(folio.trim())}`);
+      const res = await api.get(`/sales/by-folio/${encodeURIComponent(parsearFolio(folio))}`);
       setVenta(res.data);
       setCantidades({});
       setMotivo('');

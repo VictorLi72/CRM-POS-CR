@@ -39,6 +39,30 @@ export function setAutoPrint(value) {
   localStorage.setItem(AUTO_PRINT_KEY, value ? 'true' : 'false');
 }
 
+const RECEIPT_HEADER_KEY = 'crm_receipt_header';
+const DEFAULT_RECEIPT_HEADER = {
+  nombre: 'CRM Super CR',
+  slogan: '',
+  cedula: '',
+  telefono: '',
+  direccion: '',
+  email: '',
+  leyenda: '¡Gracias por su compra!',
+};
+
+export function getReceiptHeader() {
+  try {
+    const stored = localStorage.getItem(RECEIPT_HEADER_KEY);
+    return stored ? { ...DEFAULT_RECEIPT_HEADER, ...JSON.parse(stored) } : { ...DEFAULT_RECEIPT_HEADER };
+  } catch {
+    return { ...DEFAULT_RECEIPT_HEADER };
+  }
+}
+
+export function setReceiptHeader(data) {
+  localStorage.setItem(RECEIPT_HEADER_KEY, JSON.stringify(data));
+}
+
 const api = axios.create();
 
 api.interceptors.request.use((config) => {

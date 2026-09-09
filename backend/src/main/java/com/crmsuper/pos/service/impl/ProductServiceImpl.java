@@ -163,6 +163,7 @@ public class ProductServiceImpl implements ProductService {
                     .existencia(rs.getBigDecimal("existencia"))
                     .existenciaMinima(rs.getBigDecimal("existencia_minima"))
                     .accesoRapido(rs.getBoolean("acceso_rapido"))
+                    .permiteFracciones(rs.getBoolean("permite_fracciones"))
                     .activo(rs.getBoolean("activo"))
                     .creadoEn(rs.getTimestamp("creado_en").toInstant())
                     .actualizadoEn(rs.getTimestamp("actualizado_en").toInstant())
@@ -215,6 +216,7 @@ public class ProductServiceImpl implements ProductService {
                 .existencia(request.getExistencia() != null ? request.getExistencia() : BigDecimal.ZERO)
                 .existenciaMinima(request.getExistenciaMinima() != null ? request.getExistenciaMinima() : BigDecimal.valueOf(5))
                 .accesoRapido(Boolean.TRUE.equals(request.getAccesoRapido()))
+                .permiteFracciones(Boolean.TRUE.equals(request.getPermiteFracciones()))
                 .activo(true)
                 .build();
         producto = productoRepository.save(producto);
@@ -240,6 +242,7 @@ public class ProductServiceImpl implements ProductService {
         if (request.getUnidadMedida() != null) existente.setUnidadMedida(request.getUnidadMedida());
         if (request.getExistenciaMinima() != null) existente.setExistenciaMinima(request.getExistenciaMinima());
         if (request.getAccesoRapido() != null) existente.setAccesoRapido(request.getAccesoRapido());
+        if (request.getPermiteFracciones() != null) existente.setPermiteFracciones(request.getPermiteFracciones());
         existente = productoRepository.save(existente);
 
         String detalle = "Producto actualizado: " + existente.getNombre();
@@ -345,6 +348,7 @@ public class ProductServiceImpl implements ProductService {
                 .existencia(p.getExistencia())
                 .existenciaMinima(p.getExistenciaMinima())
                 .accesoRapido(p.isAccesoRapido())
+                .permiteFracciones(p.isPermiteFracciones())
                 .activo(p.isActivo())
                 .creadoEn(p.getCreadoEn())
                 .actualizadoEn(p.getActualizadoEn())

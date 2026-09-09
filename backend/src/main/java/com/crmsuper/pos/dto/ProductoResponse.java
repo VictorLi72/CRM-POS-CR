@@ -24,6 +24,7 @@ public class ProductoResponse {
     private final BigDecimal existencia;
     private final BigDecimal existenciaMinima;
     private final boolean accesoRapido;
+    private final boolean permiteFracciones;
     private final boolean activo;
     private final Instant creadoEn;
     private final Instant actualizadoEn;
@@ -32,7 +33,8 @@ public class ProductoResponse {
                              BigDecimal precioCosto, BigDecimal precioVenta, BigDecimal precioEfectivo,
                              BigDecimal precioVentaOriginal, BigDecimal tarifaIva, String codigoCabys,
                              String unidadMedida, BigDecimal existencia, BigDecimal existenciaMinima,
-                             boolean accesoRapido, boolean activo, Instant creadoEn, Instant actualizadoEn) {
+                             boolean accesoRapido, boolean permiteFracciones, boolean activo,
+                             Instant creadoEn, Instant actualizadoEn) {
         this.id = id;
         this.codigoBarras = codigoBarras;
         this.nombre = nombre;
@@ -48,6 +50,7 @@ public class ProductoResponse {
         this.existencia = existencia;
         this.existenciaMinima = existenciaMinima;
         this.accesoRapido = accesoRapido;
+        this.permiteFracciones = permiteFracciones;
         this.activo = activo;
         this.creadoEn = creadoEn;
         this.actualizadoEn = actualizadoEn;
@@ -117,6 +120,10 @@ public class ProductoResponse {
         return accesoRapido;
     }
 
+    public boolean isPermiteFracciones() {
+        return permiteFracciones;
+    }
+
     public boolean isActivo() {
         return activo;
     }
@@ -145,6 +152,7 @@ public class ProductoResponse {
         private BigDecimal existencia;
         private BigDecimal existenciaMinima;
         private boolean accesoRapido;
+        private boolean permiteFracciones;
         private boolean activo;
         private Instant creadoEn;
         private Instant actualizadoEn;
@@ -224,6 +232,11 @@ public class ProductoResponse {
             return this;
         }
 
+        public Builder permiteFracciones(boolean permiteFracciones) {
+            this.permiteFracciones = permiteFracciones;
+            return this;
+        }
+
         public Builder activo(boolean activo) {
             this.activo = activo;
             return this;
@@ -242,7 +255,7 @@ public class ProductoResponse {
         public ProductoResponse build() {
             return new ProductoResponse(id, codigoBarras, nombre, categoriaId, categoriaNombre, precioCosto,
                     precioVenta, precioEfectivo, precioVentaOriginal, tarifaIva, codigoCabys, unidadMedida,
-                    existencia, existenciaMinima, accesoRapido, activo, creadoEn, actualizadoEn);
+                    existencia, existenciaMinima, accesoRapido, permiteFracciones, activo, creadoEn, actualizadoEn);
         }
     }
 }

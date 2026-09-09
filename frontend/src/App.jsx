@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import POS from './pages/POS.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Customers from './pages/Customers.jsx';
@@ -18,6 +19,14 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
 
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor', 'cajero']}>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/pos"
         element={
@@ -107,7 +116,7 @@ export default function App() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/pos" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

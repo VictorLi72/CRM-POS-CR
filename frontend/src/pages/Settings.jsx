@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getServerUrl, setServerUrl, getPrinterName, setPrinterName, getAutoPrint, setAutoPrint } from '../api/client';
+import { getServerUrl, setServerUrl, getPrinterName, setPrinterName, getAutoPrint, setAutoPrint, getReceiptHeader, setReceiptHeader } from '../api/client';
 import api from '../api/client';
 
 export default function Settings() {
@@ -13,6 +13,19 @@ export default function Settings() {
   const [impresoraGuardada, setImpresoraGuardada] = useState(false);
   const [autoPrint, setAutoPrintState] = useState(getAutoPrint());
   const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
+
+  const [header, setHeader] = useState(getReceiptHeader());
+  const [headerGuardado, setHeaderGuardado] = useState(false);
+
+  function campoHeader(campo) {
+    return (e) => setHeader((prev) => ({ ...prev, [campo]: e.target.value }));
+  }
+
+  function guardarHeader() {
+    setReceiptHeader(header);
+    setHeaderGuardado(true);
+    setTimeout(() => setHeaderGuardado(false), 2000);
+  }
 
   function toggleAutoPrint(checked) {
     setAutoPrint(checked);
@@ -47,6 +60,69 @@ export default function Settings() {
 
   return (
     <Layout title="Configuración">
+      <div className="card" style={{ maxWidth: 480 }}>
+        <h3 className="mt-0">Encabezado del tiquete</h3>
+        <p className="text-muted">
+          Esta información aparece en la parte superior de cada tiquete impreso.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
+          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+            <label>Nombre del negocio *</label>
+            <input type="text" value={header.nombre} onChange={campoHeader('nombre')} placeholder="CRM Super CR" />
+          </div>
+          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+            <label>Eslogan / subtítulo</label>
+            <input type="text" value={header.slogan} onChange={campoHeader('slogan')} placeholder="Tu tienda de confianza" />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Cédula jurídica</label>
+            <input type="text" value={header.cedula} onChange={campoHeader('cedula')} placeholder="3-101-XXXXXX" />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Teléfono</label>
+            <input type="text" value={header.telefono} onChange={campoHeader('telefono')} placeholder="2XXX-XXXX" />
+          </div>
+          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+            <label>Dirección</label>
+            <input type="text" value={header.direccion} onChange={campoHeader('direccion')} placeholder="San José, Costa Rica" />
+          </div>
+          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+            <label>Correo electrónico</label>
+            <input type="email" value={header.email} onChange={campoHeader('email')} placeholder="info@minegocio.cr" />
+          </div>
+          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+            <label>Leyenda al pie del tiquete</label>
+            <input type="text" value={header.leyenda} onChange={campoHeader('leyenda')} placeholder="¡Gracias por su compra!" />
+          </div>
+        </div>
+
+        {headerGuardado && <div className="alert alert-success" style={{ marginTop: 12 }}>Encabezado guardado.</div>}
+        <button className="btn" style={{ marginTop: 16 }} onClick={guardarHeader}>Guardar encabezado</button>
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-border)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Vista previa
+          </div>
+          <div style={{
+            fontFamily: "'Courier New', monospace", fontSize: 11, background: 'var(--color-surface)',
+            border: '1px dashed var(--color-border)', borderRadius: 6, padding: '10px 14px',
+            textAlign: 'center', lineHeight: 1.7,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{header.nombre || 'Nombre del negocio'}</div>
+            {header.slogan && <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{header.slogan}</div>}
+            {header.cedula && <div>Cédula: {header.cedula}</div>}
+            {header.telefono && <div>Tel: {header.telefono}</div>}
+            {header.direccion && <div>{header.direccion}</div>}
+            {header.email && <div>{header.email}</div>}
+            <div style={{ borderTop: '1px dashed #aaa', margin: '6px 0' }} />
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Tiquete #0042 · 09/09/2026</div>
+            <div style={{ borderTop: '1px dashed #aaa', margin: '6px 0' }} />
+            <div style={{ fontSize: 10, marginTop: 6 }}>{header.leyenda || '¡Gracias por su compra!'}</div>
+          </div>
+        </div>
+      </div>
+
       <div className="card" style={{ maxWidth: 480 }}>
         <h3 className="mt-0">Servidor central</h3>
         <p className="text-muted">

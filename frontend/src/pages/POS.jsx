@@ -4,6 +4,7 @@ import api, { getPrinterName, getAutoPrint } from '../api/client';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext.jsx';
 import { buildReceiptHtml } from '../utils/receiptHtml';
+import QRCode from 'qrcode';
 
 const REDONDEAR = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const DEBOUNCE_BUSQUEDA_MS = 150;
@@ -561,10 +562,13 @@ export default function POS() {
                           </button>
                           <input
                             type="number"
-                            step="0.1"
-                            min="0.1"
+                            step={line.producto.permite_fracciones ? '0.5' : '1'}
+                            min={line.producto.permite_fracciones ? '0.01' : '1'}
                             value={line.cantidad}
-                            onChange={(e) => updateQuantity(line.producto.id, Number(e.target.value))}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              updateQuantity(line.producto.id, line.producto.permite_fracciones ? v : Math.round(v));
+                            }}
                           />
                           <button type="button" className="qty-btn" onClick={() => stepQuantity(line.producto.id, 1)}>
                             +
@@ -695,14 +699,26 @@ export default function POS() {
 function Receipt({ sale, cashier, onNewSale }) {
   const [imprimiendo, setImprimiendo] = useState(false);
   const [errorImpresion, setErrorImpresion] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState('');
   const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
   const autoPrinted = useRef(false);
+
+  useEffect(() => {
+    const d = sale.creado_en ? new Date(sale.creado_en) : new Date();
+    const yy = String(d.getFullYear()).slice(2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const code = `CRM-${yy}${mm}${dd}-${String(sale.folio).padStart(4, '0')}`;
+    QRCode.toDataURL(code, { width: 140, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => {});
+  }, [sale.folio, sale.creado_en]);
 
   async function imprimir() {
     setErrorImpresion('');
     setImprimiendo(true);
     try {
-      const html = buildReceiptHtml(sale, cashier);
+      const html = await buildReceiptHtml(sale, cashier);
       await window.electronAPI.imprimirTiquete(html, getPrinterName());
     } catch (err) {
       setErrorImpresion('No se pudo imprimir. Revisá la impresora en Configuración.');
@@ -725,6 +741,22 @@ function Receipt({ sale, cashier, onNewSale }) {
       <div className="text-center">
         <h2>Venta registrada</h2>
         <p className="text-muted">Tiquete #{sale.folio}</p>
+        {qrDataUrl && (() => {
+          const d = sale.creado_en ? new Date(sale.creado_en) : new Date();
+          const yy = String(d.getFullYear()).slice(2);
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const code = `CRM-${yy}${mm}${dd}-${String(sale.folio).padStart(4, '0')}`;
+          return (
+            <div style={{ margin: '10px 0 4px' }}>
+              <img src={qrDataUrl} alt={`QR ${code}`} style={{ width: 120, height: 120, borderRadius: 8, border: '1px solid #e2e5ea' }} />
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '1.5px', color: '#2d3748', marginTop: 4 }}>{code}</div>
+              <div style={{ fontSize: 11, color: '#6b7686', marginTop: 2 }}>
+                Escaneá para buscar esta compra en Devoluciones
+              </div>
+            </div>
+          );
+        })()}
       </div>
       <table>
         <tbody>

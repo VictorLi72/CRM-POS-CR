@@ -17,6 +17,7 @@ const EMPTY_PRODUCT = {
   existencia: 0,
   existencia_minima: 5,
   acceso_rapido: false,
+  permite_fracciones: false,
 };
 
 export default function Inventory() {
@@ -434,6 +435,22 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
             />
             Mostrar en accesos rápidos del POS (para productos sin código de barras, ej. frutas, pan, bolsas)
           </label>
+        </div>
+
+        <div className="form-group">
+          <label className="flex items-center gap-8" style={{ fontWeight: 400, color: 'var(--color-text)' }}>
+            <input
+              type="checkbox"
+              checked={!!form.permite_fracciones}
+              onChange={(e) => set('permite_fracciones', e.target.checked)}
+            />
+            Permite vender en fracciones (ej: 0.5 kg, 1.25 unidades)
+          </label>
+          {form.permite_fracciones && (
+            <div className="text-muted" style={{ fontSize: 12, marginTop: 4, marginLeft: 22 }}>
+              En el POS el cajero podrá ingresar cantidades como 0.5 o 1.25 al agregar este producto al carrito.
+            </div>
+          )}
         </div>
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
