@@ -14,6 +14,7 @@ public class ProductoRequest {
     private BigDecimal existencia;
     private BigDecimal existenciaMinima;
     private Boolean accesoRapido;
+    private Boolean permiteFracciones;
 
     public String getCodigoBarras() {
         return codigoBarras;
@@ -101,5 +102,13 @@ public class ProductoRequest {
 
     public void setAccesoRapido(Boolean accesoRapido) {
         this.accesoRapido = accesoRapido;
+    }
+
+    public Boolean getPermiteFracciones() {
+        return permiteFracciones;
+    }
+
+    public void setPermiteFracciones(Boolean permiteFracciones) {
+        this.permiteFracciones = permiteFracciones;
     }
 }

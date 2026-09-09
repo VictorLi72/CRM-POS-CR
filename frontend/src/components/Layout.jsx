@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client';
 
 const NAV_ITEMS = [
+  { to: '/', label: 'Inicio', icon: '🏠', roles: ['administrador', 'supervisor', 'cajero'], end: true },
   { to: '/pos', label: 'Punto de Venta', icon: '🧾', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/inventory', label: 'Inventario', icon: '📦', roles: ['administrador', 'supervisor'] },
   { to: '/customers', label: 'Clientes', icon: '👥', roles: ['administrador', 'supervisor', 'cajero'] },
@@ -42,6 +43,7 @@ export default function Layout({ title, topbarExtra, children }) {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.end}
               className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
               title={item.label}
             >

@@ -49,6 +49,9 @@ public class Producto {
     @Column(name = "acceso_rapido", nullable = false)
     private boolean accesoRapido = false;
 
+    @Column(name = "permite_fracciones", nullable = false)
+    private boolean permiteFracciones = false;
+
     @Column(nullable = false)
     private boolean activo = true;
 
@@ -65,8 +68,8 @@ public class Producto {
 
     public Producto(Long id, String codigoBarras, String nombre, Categoria categoria, BigDecimal precioCosto,
                      BigDecimal precioVenta, BigDecimal tarifaIva, String codigoCabys, String unidadMedida,
-                     BigDecimal existencia, BigDecimal existenciaMinima, boolean accesoRapido, boolean activo,
-                     Instant creadoEn, Instant actualizadoEn) {
+                     BigDecimal existencia, BigDecimal existenciaMinima, boolean accesoRapido,
+                     boolean permiteFracciones, boolean activo, Instant creadoEn, Instant actualizadoEn) {
         this.id = id;
         this.codigoBarras = codigoBarras;
         this.nombre = nombre;
@@ -79,6 +82,7 @@ public class Producto {
         this.existencia = existencia;
         this.existenciaMinima = existenciaMinima;
         this.accesoRapido = accesoRapido;
+        this.permiteFracciones = permiteFracciones;
         this.activo = activo;
         this.creadoEn = creadoEn;
         this.actualizadoEn = actualizadoEn;
@@ -184,6 +188,14 @@ public class Producto {
         this.accesoRapido = accesoRapido;
     }
 
+    public boolean isPermiteFracciones() {
+        return permiteFracciones;
+    }
+
+    public void setPermiteFracciones(boolean permiteFracciones) {
+        this.permiteFracciones = permiteFracciones;
+    }
+
     public boolean isActivo() {
         return activo;
     }
@@ -221,6 +233,7 @@ public class Producto {
         private BigDecimal existencia = BigDecimal.ZERO;
         private BigDecimal existenciaMinima = BigDecimal.valueOf(5);
         private boolean accesoRapido = false;
+        private boolean permiteFracciones = false;
         private boolean activo = true;
         private Instant creadoEn;
         private Instant actualizadoEn;
@@ -285,6 +298,11 @@ public class Producto {
             return this;
         }
 
+        public Builder permiteFracciones(boolean permiteFracciones) {
+            this.permiteFracciones = permiteFracciones;
+            return this;
+        }
+
         public Builder activo(boolean activo) {
             this.activo = activo;
             return this;
@@ -302,8 +320,8 @@ public class Producto {
 
         public Producto build() {
             return new Producto(id, codigoBarras, nombre, categoria, precioCosto, precioVenta, tarifaIva,
-                    codigoCabys, unidadMedida, existencia, existenciaMinima, accesoRapido, activo, creadoEn,
-                    actualizadoEn);
+                    codigoCabys, unidadMedida, existencia, existenciaMinima, accesoRapido, permiteFracciones,
+                    activo, creadoEn, actualizadoEn);
         }
     }
 }
