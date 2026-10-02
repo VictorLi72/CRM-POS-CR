@@ -1,6 +1,13 @@
 package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.*;
+import com.crmsuper.pos.dto.venta.SaleRequest;
+import com.crmsuper.pos.dto.venta.SaleItemRequest;
+import com.crmsuper.pos.dto.venta.VentaResponse;
+import com.crmsuper.pos.dto.venta.DetalleVentaResponse;
+import com.crmsuper.pos.dto.devolucion.DevolucionRequest;
+import com.crmsuper.pos.dto.devolucion.DevolucionResponse;
+import com.crmsuper.pos.dto.devolucion.DevolucionItemRequest;
+import com.crmsuper.pos.dto.devolucion.DevolucionItemResponse;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.*;
 import com.crmsuper.pos.model.enums.EstadoVenta;

@@ -1,7 +1,7 @@
-package com.crmsuper.pos.controller;
+﻿package com.crmsuper.pos.controller;
 
-import com.crmsuper.pos.dto.PromocionRequest;
-import com.crmsuper.pos.dto.PromocionResponse;
+import com.crmsuper.pos.dto.promocion.PromocionRequest;
+import com.crmsuper.pos.dto.promocion.PromocionResponse;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.PromocionService;
 import org.springframework.http.HttpStatus;

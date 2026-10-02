@@ -1,8 +1,8 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.TurnoAbrirRequest;
-import com.crmsuper.pos.dto.TurnoCerrarRequest;
-import com.crmsuper.pos.dto.TurnoResponse;
+import com.crmsuper.pos.dto.turno.TurnoAbrirRequest;
+import com.crmsuper.pos.dto.turno.TurnoCerrarRequest;
+import com.crmsuper.pos.dto.turno.TurnoResponse;
 import com.crmsuper.pos.security.AuthenticatedUser;
 
 import java.util.List;

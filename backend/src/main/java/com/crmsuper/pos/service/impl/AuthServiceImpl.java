@@ -1,8 +1,8 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.LoginRequest;
-import com.crmsuper.pos.dto.LoginResponse;
-import com.crmsuper.pos.dto.UserInfo;
+import com.crmsuper.pos.dto.auth.LoginRequest;
+import com.crmsuper.pos.dto.auth.LoginResponse;
+import com.crmsuper.pos.dto.auth.UserInfo;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.Usuario;
 import com.crmsuper.pos.model.enums.TipoAccion;

@@ -1,7 +1,7 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.PromocionRequest;
-import com.crmsuper.pos.dto.PromocionResponse;
+import com.crmsuper.pos.dto.promocion.PromocionRequest;
+import com.crmsuper.pos.dto.promocion.PromocionResponse;
 import com.crmsuper.pos.model.Promocion;
 import com.crmsuper.pos.security.AuthenticatedUser;
 

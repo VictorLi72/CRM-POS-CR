@@ -1,10 +1,10 @@
-package com.crmsuper.pos.controller;
+﻿package com.crmsuper.pos.controller;
 
-import com.crmsuper.pos.dto.CategoriaRequest;
-import com.crmsuper.pos.dto.MovimientoResponse;
-import com.crmsuper.pos.dto.ProductoRequest;
-import com.crmsuper.pos.dto.ProductoResponse;
-import com.crmsuper.pos.dto.StockAdjustRequest;
+import com.crmsuper.pos.dto.catalogo.CategoriaRequest;
+import com.crmsuper.pos.dto.reporte.MovimientoResponse;
+import com.crmsuper.pos.dto.producto.ProductoRequest;
+import com.crmsuper.pos.dto.producto.ProductoResponse;
+import com.crmsuper.pos.dto.producto.StockAdjustRequest;
 import com.crmsuper.pos.model.Categoria;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.ProductService;

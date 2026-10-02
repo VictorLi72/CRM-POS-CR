@@ -1,6 +1,6 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.TarifaIvaRequest;
+import com.crmsuper.pos.dto.catalogo.TarifaIvaRequest;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.TarifaIva;
 import com.crmsuper.pos.model.enums.TipoAccion;

@@ -1,8 +1,8 @@
-package com.crmsuper.pos.controller;
+﻿package com.crmsuper.pos.controller;
 
-import com.crmsuper.pos.dto.TurnoAbrirRequest;
-import com.crmsuper.pos.dto.TurnoCerrarRequest;
-import com.crmsuper.pos.dto.TurnoResponse;
+import com.crmsuper.pos.dto.turno.TurnoAbrirRequest;
+import com.crmsuper.pos.dto.turno.TurnoCerrarRequest;
+import com.crmsuper.pos.dto.turno.TurnoResponse;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.TurnoService;
 import org.springframework.http.HttpStatus;

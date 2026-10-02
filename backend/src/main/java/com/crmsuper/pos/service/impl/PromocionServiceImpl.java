@@ -1,7 +1,7 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.PromocionRequest;
-import com.crmsuper.pos.dto.PromocionResponse;
+import com.crmsuper.pos.dto.promocion.PromocionRequest;
+import com.crmsuper.pos.dto.promocion.PromocionResponse;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.Producto;
 import com.crmsuper.pos.model.Promocion;

@@ -1,6 +1,6 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.BitacoraResponse;
+import com.crmsuper.pos.dto.auditoria.BitacoraResponse;
 import com.crmsuper.pos.model.Bitacora;
 import com.crmsuper.pos.model.enums.TipoAccion;
 import com.crmsuper.pos.repository.BitacoraRepository;

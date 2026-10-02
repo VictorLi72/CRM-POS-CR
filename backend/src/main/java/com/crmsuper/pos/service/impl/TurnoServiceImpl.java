@@ -1,11 +1,11 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.TotalCantidadRow;
-import com.crmsuper.pos.dto.TurnoAbrirRequest;
-import com.crmsuper.pos.dto.TurnoCerrarRequest;
-import com.crmsuper.pos.dto.TurnoResponse;
-import com.crmsuper.pos.dto.TurnoResumen;
-import com.crmsuper.pos.dto.VentasPorMetodoRow;
+import com.crmsuper.pos.dto.reporte.TotalCantidadRow;
+import com.crmsuper.pos.dto.turno.TurnoAbrirRequest;
+import com.crmsuper.pos.dto.turno.TurnoCerrarRequest;
+import com.crmsuper.pos.dto.turno.TurnoResponse;
+import com.crmsuper.pos.dto.turno.TurnoResumen;
+import com.crmsuper.pos.dto.reporte.VentasPorMetodoRow;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.TurnoCaja;
 import com.crmsuper.pos.model.enums.EstadoTurno;
