@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
@@ -60,8 +60,12 @@ export default function Dashboard() {
 
   const accesosVisibles = ACCESOS.filter(a => a.roles.includes(user?.rol));
 
-  const fecha = ahora.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const hora  = ahora.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+  const fecha = useMemo(
+    () => ahora.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ahora.toDateString()]
+  );
+  const hora = ahora.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
 
   return (
     <Layout title="Inicio">
@@ -157,19 +161,8 @@ function StatCard({ label, value, sub, accentColor, icon, onClick }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        background: '#fff',
-        border: '1px solid var(--color-border)',
-        borderRadius: 10,
-        padding: '16px 18px',
-        boxShadow: '0 1px 3px rgba(16,24,32,0.06)',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'box-shadow 0.12s, transform 0.12s',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-      onMouseEnter={e => { if (onClick) { e.currentTarget.style.boxShadow='0 4px 14px rgba(16,24,32,0.1)'; e.currentTarget.style.transform='translateY(-1px)'; } }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow='0 1px 3px rgba(16,24,32,0.06)'; e.currentTarget.style.transform='translateY(0)'; }}
+      className={onClick ? 'stat-card stat-card--clickable' : 'stat-card'}
+      style={{ position: 'relative', overflow: 'hidden' }}
     >
       <div style={{ position:'absolute', top:0, left:0, width:3, height:'100%', background: accentColor, borderRadius:'10px 0 0 10px' }} />
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom: 10 }}>
@@ -189,30 +182,8 @@ function AccesoCard({ icon, label, desc, color, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 8,
-        padding: '18px 16px',
-        background: '#fff',
-        border: '1px solid var(--color-border)',
-        borderRadius: 12,
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'all 0.12s ease',
-        boxShadow: '0 1px 3px rgba(16,24,32,0.05)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = color;
-        e.currentTarget.style.boxShadow = `0 4px 14px rgba(16,24,32,0.10)`;
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--color-border)';
-        e.currentTarget.style.boxShadow = '0 1px 3px rgba(16,24,32,0.05)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
+      className="acceso-card"
+      style={{ '--accent': color }}
     >
       <div style={{
         width: 40, height: 40, borderRadius: 10,
