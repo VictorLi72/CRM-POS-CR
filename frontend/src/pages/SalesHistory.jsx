@@ -9,6 +9,7 @@ const METODO_LABELS = {
   tarjeta: 'Tarjeta',
   sinpe: 'SINPE Móvil',
   fiado: 'Fiado',
+  mixto: 'Mixto',
 };
 
 function todayISO() {
@@ -126,9 +127,13 @@ export default function SalesHistory() {
                 <td>{METODO_LABELS[v.metodo_pago] || v.metodo_pago}</td>
                 <td className="text-right">{formatCurrency(v.total)}</td>
                 <td>
-                  <span className={'badge ' + (v.estado === 'anulada' ? 'badge-danger' : 'badge-success')}>
-                    {v.estado === 'anulada' ? 'Anulada' : 'Completada'}
-                  </span>
+                  {v.estado === 'anulada' ? (
+                    <span className="badge badge-danger">Anulada</span>
+                  ) : v.tiene_devolucion ? (
+                    <span className="badge badge-warning">Con devolución</span>
+                  ) : (
+                    <span className="badge badge-success">Completada</span>
+                  )}
                 </td>
                 <td>
                   <button className="btn btn-secondary btn-sm" onClick={() => verVenta(v.id)}>
@@ -174,7 +179,11 @@ function SaleDetailModal({ sale, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center">
           <h2>Tiquete #{sale.folio}</h2>
-          {sale.estado === 'anulada' && <span className="badge badge-danger">Anulada</span>}
+          {sale.estado === 'anulada' ? (
+            <span className="badge badge-danger">Anulada</span>
+          ) : sale.tiene_devolucion ? (
+            <span className="badge badge-warning">Con devolución</span>
+          ) : null}
         </div>
         <p className="text-muted">
           {formatDate(sale.creado_en)} · {sale.cliente_nombre || 'Sin cliente'} · Cajero: {sale.cajero_nombre}
@@ -201,10 +210,19 @@ function SaleDetailModal({ sale, onClose }) {
           <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 18 }}>
             <span>Total</span><span>{formatCurrency(sale.total)}</span>
           </div>
-          {sale.metodo_pago === 'efectivo' && (
+          {sale.metodo_pago === 'mixto' && sale.pagos ? (
+            sale.pagos.map((p, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-muted">{METODO_LABELS[p.metodo] || p.metodo}</span>
+                <span>{formatCurrency(p.monto)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-between"><span className="text-muted">Pago</span><span>{METODO_LABELS[sale.metodo_pago] || sale.metodo_pago}</span></div>
+          )}
+          {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
             <div className="flex justify-between"><span className="text-muted">Vuelto</span><span>{formatCurrency(sale.vuelto)}</span></div>
           )}
-          <div className="flex justify-between"><span className="text-muted">Pago</span><span>{METODO_LABELS[sale.metodo_pago] || sale.metodo_pago}</span></div>
         </div>
         {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}
         <div className="modal-actions">

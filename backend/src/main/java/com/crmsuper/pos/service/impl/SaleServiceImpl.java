@@ -268,7 +268,8 @@ public class SaleServiceImpl implements SaleService {
     @Transactional(readOnly = true)
     public List<VentaResponse> listar(String from, String to, Long userId, String status) {
         StringBuilder sql = new StringBuilder("""
-                SELECT v.*, u.nombre_completo AS cajero_nombre, c.nombre AS cliente_nombre
+                SELECT v.*, u.nombre_completo AS cajero_nombre, c.nombre AS cliente_nombre,
+                       EXISTS(SELECT 1 FROM devoluciones d WHERE d.venta_id = v.id) AS tiene_devolucion
                 FROM ventas v
                 LEFT JOIN usuarios u ON u.id = v.usuario_id
                 LEFT JOIN clientes c ON c.id = v.cliente_id
@@ -314,7 +315,12 @@ public class SaleServiceImpl implements SaleService {
     public VentaResponse obtenerPorId(Long id) {
         Venta venta = ventaRepository.findById(id).orElseThrow(() -> ApiException.notFound("Venta no encontrada"));
         List<DetalleVenta> items = detalleVentaRepository.findByVentaIdOrderById(venta.getId());
-        return toResponse(venta, items, null);
+        Map<Long, BigDecimal> devueltoMap = new HashMap<>();
+        for (DetalleVenta it : items) {
+            BigDecimal devuelto = devolucionItemRepository.sumCantidadByDetalleVentaId(it.getId());
+            devueltoMap.put(it.getId(), devuelto != null ? devuelto : BigDecimal.ZERO);
+        }
+        return toResponse(venta, items, devueltoMap);
     }
 
     @Override
@@ -473,11 +479,15 @@ public class SaleServiceImpl implements SaleService {
                 .vuelto(rs.getBigDecimal("vuelto"))
                 .estado(EstadoVenta.valueOf(rs.getString("estado")))
                 .creadoEn(rs.getTimestamp("creado_en").toInstant())
+                .tieneDevolucion(rs.getBoolean("tiene_devolucion"))
                 .items(null)
                 .build();
     }
 
     private VentaResponse toResponse(Venta v, List<DetalleVenta> items, Map<Long, BigDecimal> devueltoMap) {
+        Boolean tieneDevolucion = devueltoMap != null
+                ? devueltoMap.values().stream().anyMatch(q -> q.compareTo(BigDecimal.ZERO) > 0)
+                : null;
         return VentaResponse.builder()
                 .id(v.getId())
                 .folio(v.getFolio())
@@ -496,6 +506,7 @@ public class SaleServiceImpl implements SaleService {
                 .creadoEn(v.getCreadoEn())
                 .items(items != null ? items.stream().map(d -> toDetalleResponse(d, devueltoMap)).toList() : null)
                 .pagos(parsePagosJson(v.getPagosJson()))
+                .tieneDevolucion(tieneDevolucion)
                 .build();
     }
 
