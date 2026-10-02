@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import { getServerUrl, setServerUrl, getPrinterName, setPrinterName, getAutoPrint, setAutoPrint, getReceiptHeader, setReceiptHeader } from '../api/client';
 import api from '../api/client';
@@ -16,6 +16,9 @@ export default function Settings() {
 
   const [header, setHeader] = useState(getReceiptHeader());
   const [headerGuardado, setHeaderGuardado] = useState(false);
+  const headerTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(headerTimerRef.current), []);
 
   function campoHeader(campo) {
     return (e) => setHeader((prev) => ({ ...prev, [campo]: e.target.value }));
@@ -24,7 +27,8 @@ export default function Settings() {
   function guardarHeader() {
     setReceiptHeader(header);
     setHeaderGuardado(true);
-    setTimeout(() => setHeaderGuardado(false), 2000);
+    clearTimeout(headerTimerRef.current);
+    headerTimerRef.current = setTimeout(() => setHeaderGuardado(false), 2000);
   }
 
   function toggleAutoPrint(checked) {

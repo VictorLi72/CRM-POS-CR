@@ -1,0 +1,40 @@
+/* ── Utilidades ── */
+.text-muted    { color: var(--color-text-muted); }
+.text-right    { text-align: right; }
+.text-center   { text-align: center; }
+.mt-0          { margin-top: 0; }
+.flex          { display: flex; }
+.gap-8         { gap: 8px; }
+.items-center  { align-items: center; }
+.justify-between { justify-content: space-between; }
+
+/* ── Responsivo ── */
+@media (max-width: 1024px) {
+  .pos-layout { grid-template-columns: 1fr; }
+  .pos-side-panel { position: static; }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .sidebar { width: 68px; }
+  .sidebar-brand-subtitle,
+  .sidebar-link-label,
+  .sidebar-footer-text,
+  .logout-btn-label { display: none; }
+  .sidebar-brand    { padding: 0 0 16px; text-align: center; font-size: 0; }
+  .sidebar-link     { justify-content: center; padding: 12px 8px; }
+  .sidebar-footer   { padding: 12px 8px 0; }
+  .logout-btn       { padding: 10px; }
+  .logout-btn-icon  { display: inline; font-size: 16px; }
+  .content          { padding: 16px; }
+  .topbar           { padding: 0 16px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .product-grid     { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .payment-options  { grid-template-columns: 1fr; }
+  .notif-dropdown   { width: 260px; right: -8px; }
+  .login-card       { width: 90vw; padding: 24px; }
+}

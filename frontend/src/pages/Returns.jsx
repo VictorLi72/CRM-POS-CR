@@ -14,7 +14,7 @@ export default function Returns() {
 
   function parsearFolio(input) {
     const match = input.trim().match(/^CRM-\d{6}-(\d+)$/i);
-    return match ? String(Number(match[1])) : input.trim();
+    return match ? match[1] : input.trim();
   }
 
   async function buscarVenta(e) {

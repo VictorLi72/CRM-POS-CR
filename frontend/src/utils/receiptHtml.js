@@ -2,7 +2,7 @@ import QRCode from 'qrcode';
 import { formatCurrency, formatDate } from './format';
 import { getReceiptHeader } from '../api/client';
 
-function buildFolioCode(folio, createdAt) {
+export function buildFolioCode(folio, createdAt) {
   const d = createdAt ? new Date(createdAt) : new Date();
   const yy = String(d.getFullYear()).slice(2);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -12,8 +12,7 @@ function buildFolioCode(folio, createdAt) {
 
 // Genera el HTML del tiquete para imprimir en una impresora térmica de 80mm.
 // El QR codifica CRM-AAMMDD-FOLIO para escaneo rápido en devoluciones.
-export async function buildReceiptHtml(sale, cashierName) {
-  const hdr = getReceiptHeader();
+export async function buildReceiptHtml(sale, cashierName, hdr = getReceiptHeader()) {
   const folioCode = buildFolioCode(sale.folio, sale.creado_en);
   const qrDataUrl = await QRCode.toDataURL(folioCode, {
     width: 130,

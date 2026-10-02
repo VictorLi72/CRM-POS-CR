@@ -1,0 +1,18 @@
+.login-shell {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #14202b, #1e6f5c);
+}
+
+.login-card {
+  background: #fff;
+  padding: 36px;
+  border-radius: 12px;
+  width: 360px;
+  box-shadow: var(--shadow-md);
+}
+
+.login-card h1              { font-size: 20px; margin: 0 0 2px; }
+.login-card p.subtitle      { color: var(--color-text-muted); margin: 0 0 24px; font-size: 13px; }
