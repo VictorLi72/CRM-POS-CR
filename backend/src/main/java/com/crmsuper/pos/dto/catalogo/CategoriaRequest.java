@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.catalogo;
+package com.crmsuper.pos.dto.catalogo;
 
 import jakarta.validation.constraints.NotBlank;
 

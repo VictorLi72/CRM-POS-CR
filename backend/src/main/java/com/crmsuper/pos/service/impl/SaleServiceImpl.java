@@ -4,10 +4,13 @@ import com.crmsuper.pos.dto.venta.SaleRequest;
 import com.crmsuper.pos.dto.venta.SaleItemRequest;
 import com.crmsuper.pos.dto.venta.VentaResponse;
 import com.crmsuper.pos.dto.venta.DetalleVentaResponse;
+import com.crmsuper.pos.dto.venta.PagoMixtoItem;
 import com.crmsuper.pos.dto.devolucion.DevolucionRequest;
 import com.crmsuper.pos.dto.devolucion.DevolucionResponse;
 import com.crmsuper.pos.dto.devolucion.DevolucionItemRequest;
 import com.crmsuper.pos.dto.devolucion.DevolucionItemResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.*;
 import com.crmsuper.pos.model.enums.EstadoVenta;
@@ -34,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Lógica de negocio del POS: checkout de ventas, anulación y devoluciones.
@@ -56,6 +60,7 @@ public class SaleServiceImpl implements SaleService {
     private final AuditoriaService auditoriaService;
     private final PromocionService promocionService;
     private final NamedParameterJdbcTemplate jdbc;
+    private final ObjectMapper objectMapper;
 
     public SaleServiceImpl(
             VentaRepository ventaRepository,
@@ -69,7 +74,8 @@ public class SaleServiceImpl implements SaleService {
             FolioCounterRepository folioCounterRepository,
             AuditoriaService auditoriaService,
             PromocionService promocionService,
-            NamedParameterJdbcTemplate jdbc
+            NamedParameterJdbcTemplate jdbc,
+            ObjectMapper objectMapper
     ) {
         this.ventaRepository = ventaRepository;
         this.detalleVentaRepository = detalleVentaRepository;
@@ -83,6 +89,7 @@ public class SaleServiceImpl implements SaleService {
         this.auditoriaService = auditoriaService;
         this.promocionService = promocionService;
         this.jdbc = jdbc;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -91,11 +98,19 @@ public class SaleServiceImpl implements SaleService {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw ApiException.badRequest("La venta debe tener al menos un producto");
         }
-        if (request.getMetodoPago() == null) {
+        boolean isMixto = request.getPagos() != null && !request.getPagos().isEmpty();
+        if (!isMixto && request.getMetodoPago() == null) {
             throw ApiException.badRequest("Método de pago inválido");
         }
-        if (request.getMetodoPago() == MetodoPago.fiado && request.getClienteId() == null) {
+        if (!isMixto && request.getMetodoPago() == MetodoPago.fiado && request.getClienteId() == null) {
             throw ApiException.badRequest("Una venta fiada requiere seleccionar un cliente");
+        }
+        if (isMixto) {
+            for (PagoMixtoItem p : request.getPagos()) {
+                if (p.getMetodo() == MetodoPago.fiado) {
+                    throw ApiException.badRequest("Fiado no puede combinarse en pago mixto");
+                }
+            }
         }
 
         BigDecimal subtotal = BigDecimal.ZERO;
@@ -138,8 +153,43 @@ public class SaleServiceImpl implements SaleService {
         BigDecimal descuentoTotal = MoneyUtils.round2(request.getDescuentoTotal() != null ? request.getDescuentoTotal() : BigDecimal.ZERO);
         BigDecimal total = MoneyUtils.round2(subtotal.add(ivaTotal).subtract(descuentoTotal));
 
+        // Compute payment fields depending on single or mixed payment
+        MetodoPago metodoPagoFinal;
+        BigDecimal montoRecibidoFinal = null;
+        BigDecimal vueltoFinal = null;
+        String pagosJsonStr = null;
+
+        if (isMixto) {
+            BigDecimal sumaPagos = request.getPagos().stream()
+                    .map(PagoMixtoItem::getMonto).filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (sumaPagos.compareTo(total) < 0) {
+                throw ApiException.badRequest("El monto de los pagos no cubre el total de la venta");
+            }
+            metodoPagoFinal = MetodoPago.mixto;
+            montoRecibidoFinal = MoneyUtils.round2(sumaPagos);
+            BigDecimal efectivoMonto = request.getPagos().stream()
+                    .filter(p -> p.getMetodo() == MetodoPago.efectivo)
+                    .map(PagoMixtoItem::getMonto).filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (efectivoMonto.signum() > 0) {
+                BigDecimal otrosMonto = sumaPagos.subtract(efectivoMonto);
+                BigDecimal faltaParaEfectivo = total.subtract(otrosMonto).max(BigDecimal.ZERO);
+                vueltoFinal = MoneyUtils.round2(efectivoMonto.subtract(faltaParaEfectivo));
+            }
+            try { pagosJsonStr = objectMapper.writeValueAsString(request.getPagos()); }
+            catch (Exception ignored) {}
+        } else {
+            metodoPagoFinal = request.getMetodoPago();
+            if (metodoPagoFinal == MetodoPago.efectivo) {
+                BigDecimal montoRec = request.getMontoRecibido() != null ? request.getMontoRecibido() : total;
+                montoRecibidoFinal = montoRec;
+                vueltoFinal = MoneyUtils.round2(montoRec.subtract(total));
+            }
+        }
+
         Cliente cliente = null;
-        if (request.getMetodoPago() == MetodoPago.fiado) {
+        if (metodoPagoFinal == MetodoPago.fiado) {
             cliente = clienteRepository.findById(request.getClienteId())
                     .orElseThrow(() -> ApiException.badRequest("Cliente no encontrado"));
             BigDecimal nuevoSaldo = cliente.getSaldoCredito().add(total);
@@ -151,7 +201,6 @@ public class SaleServiceImpl implements SaleService {
         }
 
         Long folio = siguienteFolio();
-        BigDecimal montoRecibido = request.getMontoRecibido() != null ? request.getMontoRecibido() : total;
 
         Venta venta = Venta.builder()
                 .folio(folio)
@@ -161,9 +210,10 @@ public class SaleServiceImpl implements SaleService {
                 .descuentoTotal(descuentoTotal)
                 .ivaTotal(ivaTotal)
                 .total(total)
-                .metodoPago(request.getMetodoPago())
-                .montoRecibido(request.getMetodoPago() == MetodoPago.efectivo ? montoRecibido : null)
-                .vuelto(request.getMetodoPago() == MetodoPago.efectivo ? MoneyUtils.round2(montoRecibido.subtract(total)) : null)
+                .metodoPago(metodoPagoFinal)
+                .montoRecibido(montoRecibidoFinal)
+                .vuelto(vueltoFinal)
+                .pagosJson(pagosJsonStr)
                 .estado(EstadoVenta.completada)
                 .build();
         venta = ventaRepository.save(venta);
@@ -197,7 +247,7 @@ public class SaleServiceImpl implements SaleService {
                     .build());
         }
 
-        if (request.getMetodoPago() == MetodoPago.fiado) {
+        if (metodoPagoFinal == MetodoPago.fiado) {
             cliente.setSaldoCredito(cliente.getSaldoCredito().add(total));
             clienteRepository.save(cliente);
         } else if (cliente != null) {
@@ -209,7 +259,7 @@ public class SaleServiceImpl implements SaleService {
         }
 
         auditoriaService.registrar(usuario.id(), usuario.nombreCompleto(), TipoAccion.CREAR, "Venta", venta.getId(),
-                "Folio #" + folio + ", total ₡" + total + ", método: " + request.getMetodoPago());
+                "Folio #" + folio + ", total ₡" + total + ", método: " + metodoPagoFinal);
 
         return toResponse(venta, detalles, null);
     }
@@ -445,7 +495,17 @@ public class SaleServiceImpl implements SaleService {
                 .estado(v.getEstado())
                 .creadoEn(v.getCreadoEn())
                 .items(items != null ? items.stream().map(d -> toDetalleResponse(d, devueltoMap)).toList() : null)
+                .pagos(parsePagosJson(v.getPagosJson()))
                 .build();
+    }
+
+    private List<PagoMixtoItem> parsePagosJson(String json) {
+        if (json == null) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<PagoMixtoItem>>() {});
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private DetalleVentaResponse toDetalleResponse(DetalleVenta d, Map<Long, BigDecimal> devueltoMap) {

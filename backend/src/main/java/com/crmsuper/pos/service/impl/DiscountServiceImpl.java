@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service.impl;
+package com.crmsuper.pos.service.impl;
 
 import com.crmsuper.pos.dto.catalogo.DescuentoRequest;
 import com.crmsuper.pos.exception.ApiException;

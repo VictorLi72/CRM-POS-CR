@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.promocion;
+package com.crmsuper.pos.dto.promocion;
 
 import com.crmsuper.pos.model.enums.TipoPromocion;
 

@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.venta;
+package com.crmsuper.pos.dto.venta;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

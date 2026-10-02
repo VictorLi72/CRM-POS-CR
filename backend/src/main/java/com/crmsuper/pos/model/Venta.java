@@ -53,6 +53,9 @@ public class Venta {
     @Column(nullable = false, length = 20)
     private EstadoVenta estado = EstadoVenta.completada;
 
+    @Column(name = "pagos_json", columnDefinition = "TEXT")
+    private String pagosJson;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private Instant creadoEn;
@@ -178,6 +181,14 @@ public class Venta {
         this.estado = estado;
     }
 
+    public String getPagosJson() {
+        return pagosJson;
+    }
+
+    public void setPagosJson(String pagosJson) {
+        this.pagosJson = pagosJson;
+    }
+
     public Instant getCreadoEn() {
         return creadoEn;
     }
@@ -199,6 +210,7 @@ public class Venta {
         private BigDecimal montoRecibido;
         private BigDecimal vuelto;
         private EstadoVenta estado = EstadoVenta.completada;
+        private String pagosJson;
         private Instant creadoEn;
 
         public Builder id(Long id) {
@@ -261,14 +273,21 @@ public class Venta {
             return this;
         }
 
+        public Builder pagosJson(String pagosJson) {
+            this.pagosJson = pagosJson;
+            return this;
+        }
+
         public Builder creadoEn(Instant creadoEn) {
             this.creadoEn = creadoEn;
             return this;
         }
 
         public Venta build() {
-            return new Venta(id, folio, usuario, cliente, subtotal, descuentoTotal, ivaTotal, total, metodoPago,
+            Venta v = new Venta(id, folio, usuario, cliente, subtotal, descuentoTotal, ivaTotal, total, metodoPago,
                     montoRecibido, vuelto, estado, creadoEn);
+            v.pagosJson = pagosJson;
+            return v;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.pago;
+package com.crmsuper.pos.dto.pago;
 
 import java.math.BigDecimal;
 import java.time.Instant;

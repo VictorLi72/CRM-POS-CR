@@ -4,5 +4,6 @@ public enum MetodoPago {
     efectivo,
     tarjeta,
     sinpe,
-    fiado
+    fiado,
+    mixto
 }

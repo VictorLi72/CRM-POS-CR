@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service;
+package com.crmsuper.pos.service;
 
 import com.crmsuper.pos.dto.reporte.DashboardSummaryResponse;
 import com.crmsuper.pos.dto.reporte.ProfitRow;

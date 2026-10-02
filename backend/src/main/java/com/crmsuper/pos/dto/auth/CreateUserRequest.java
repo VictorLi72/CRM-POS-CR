@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.auth;
+package com.crmsuper.pos.dto.auth;
 
 import com.crmsuper.pos.model.enums.Rol;
 import jakarta.validation.constraints.NotBlank;

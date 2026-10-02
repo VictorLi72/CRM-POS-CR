@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service;
+package com.crmsuper.pos.service;
 
 import com.crmsuper.pos.dto.auditoria.BitacoraResponse;
 import com.crmsuper.pos.model.enums.TipoAccion;
