@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency } from '../utils/format';
@@ -22,6 +22,7 @@ const EMPTY_PRODUCT = {
 
 export default function Inventory() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [ivaRates, setIvaRates] = useState([]);
@@ -248,7 +249,24 @@ export default function Inventory() {
       )}
 
       {showShoppingList && (
-        <ShoppingListModal allProducts={products} onClose={() => setShowShoppingList(false)} />
+        <ShoppingListModal
+          allProducts={products}
+          onClose={() => setShowShoppingList(false)}
+          onCreateOrder={(items) => {
+            setShowShoppingList(false);
+            navigate('/purchase-orders', {
+              state: {
+                newOrder: true,
+                items: items.map((it) => ({
+                  productoNombre: it.nombre,
+                  cantidad: String(it.cantidad),
+                  precioUnitario: '',
+                  nota: it.nota || '',
+                })),
+              },
+            });
+          }}
+        />
       )}
 
       {showCategoryModal && (
@@ -469,11 +487,12 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
   );
 }
 
-function ShoppingListModal({ allProducts, onClose }) {
+function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
   const lowStock = allProducts.filter((p) => Number(p.existencia) <= Number(p.existencia_minima));
 
   const [items, setItems] = useState(() =>
     lowStock.map((p) => ({
+      id: p.id,
       nombre: p.nombre,
       unidad: p.unidad_medida || 'unidad',
       existencia: Number(p.existencia),
@@ -484,9 +503,29 @@ function ShoppingListModal({ allProducts, onClose }) {
     }))
   );
 
+  const [busqueda, setBusqueda] = useState('');
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevaUnidad, setNuevaUnidad] = useState('unidad');
   const [nuevaCantidad, setNuevaCantidad] = useState('1');
+
+  const addedIds = new Set(items.filter((it) => it.id).map((it) => it.id));
+  const sugerencias = allProducts
+    .filter((p) => !addedIds.has(p.id) && busqueda.trim() && p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()))
+    .slice(0, 7);
+
+  function addFromInventory(p) {
+    setItems((prev) => [...prev, {
+      id: p.id,
+      nombre: p.nombre,
+      unidad: p.unidad_medida || 'unidad',
+      existencia: Number(p.existencia),
+      minimo: Number(p.existencia_minima),
+      cantidad: 1,
+      nota: '',
+      esPersonalizado: false,
+    }]);
+    setBusqueda('');
+  }
 
   function updateItem(i, field, value) {
     setItems((prev) => {
@@ -503,6 +542,7 @@ function ShoppingListModal({ allProducts, onClose }) {
   function addCustom() {
     if (!nuevoNombre.trim()) return;
     setItems((prev) => [...prev, {
+      id: null,
       nombre: nuevoNombre.trim(),
       unidad: nuevaUnidad,
       existencia: null,
@@ -539,12 +579,11 @@ function ShoppingListModal({ allProducts, onClose }) {
     th { background: #f0f0f0; text-align: left; padding: 7px 10px; border-bottom: 2px solid #ccc; font-size: 11px; text-transform: uppercase; }
     td { padding: 7px 10px; border-bottom: 1px solid #eee; }
     tr:nth-child(even) td { background: #fafafa; }
-    .badge { background: #fef2f2; color: #c00; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
   </style>
 </head>
 <body>
   <h2>Lista de compras</h2>
-  <div class="sub">Generada el ${fecha}</div>
+  <div class="sub">Generada el ${fecha} &mdash; ${items.length} ítems</div>
   <table>
     <thead>
       <tr>
@@ -571,29 +610,122 @@ function ShoppingListModal({ allProducts, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
-        style={{ width: 680, maxWidth: '96vw' }}
+        style={{ width: 740, maxWidth: '96vw', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center" style={{ marginBottom: 4 }}>
-          <h2 style={{ margin: 0 }}>Lista de compras</h2>
-          <span className="badge badge-warning">{items.length} ítems</span>
+        {/* Header */}
+        <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Lista de compras</h2>
+            <span className="text-muted" style={{ fontSize: 13 }}>
+              {items.length === 0 ? 'Sin ítems — agregá desde inventario o escribí uno nuevo' : `${items.length} ítem${items.length !== 1 ? 's' : ''} en la lista`}
+            </span>
+          </div>
         </div>
-        <p className="text-muted" style={{ marginTop: 0, marginBottom: 16, fontSize: 13 }}>
-          Los productos con stock bajo se agregan automáticamente. Podés editar cantidades o agregar ítems extra.
-        </p>
 
-        {items.length === 0 && (
-          <div className="alert alert-success">Todo el inventario está sobre el stock mínimo.</div>
-        )}
+        {/* Agregar section */}
+        <div style={{
+          background: 'var(--color-surface-alt)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 14px',
+          marginBottom: 14,
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+            Agregar a la lista
+          </div>
 
-        {items.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          {/* Buscar en inventario */}
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto del inventario..."
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            {busqueda.trim() && (
+              <div style={{
+                position: 'absolute', zIndex: 20, left: 0, right: 0,
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)', marginTop: 4, overflow: 'hidden',
+                boxShadow: 'var(--shadow-lg)',
+              }}>
+                {sugerencias.length === 0 ? (
+                  <div className="text-muted" style={{ padding: '10px 14px', fontSize: 13 }}>
+                    No se encontró en inventario. Usá el campo de abajo para agregarlo igual.
+                  </div>
+                ) : (
+                  sugerencias.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => addFromInventory(p)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        width: '100%', textAlign: 'left', padding: '9px 14px',
+                        background: 'none', border: 'none', borderBottom: '1px solid var(--color-border)',
+                        cursor: 'pointer', fontSize: 14, color: 'var(--color-text)',
+                      }}
+                    >
+                      <span>{p.nombre}</span>
+                      <span className="text-muted" style={{ fontSize: 12 }}>
+                        Stock: {p.existencia} {p.unidad_medida}
+                        {Number(p.existencia) <= Number(p.existencia_minima) && (
+                          <span className="badge badge-danger" style={{ marginLeft: 6 }}>Bajo</span>
+                        )}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Ítem personalizado */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 106px auto', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              placeholder="O escribí un ítem nuevo (insumo, producto nuevo...)"
+            />
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={nuevaCantidad}
+              onChange={(e) => setNuevaCantidad(e.target.value)}
+              placeholder="Cant."
+              style={{ textAlign: 'center' }}
+            />
+            <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)}>
+              <option value="unidad">Unidad</option>
+              <option value="kg">Kg</option>
+              <option value="litro">Litro</option>
+              <option value="paquete">Paquete</option>
+              <option value="caja">Caja</option>
+            </select>
+            <button className="btn btn-sm" onClick={addCustom} disabled={!nuevoNombre.trim()}>+ Agregar</button>
+          </div>
+        </div>
+
+        {/* La lista */}
+        <div style={{ overflowY: 'auto', flex: 1, marginBottom: 14 }}>
+          {items.length === 0 ? (
+            <div className="alert alert-success">
+              Todo el inventario está sobre el stock mínimo. Usá el buscador de arriba para agregar ítems.
+            </div>
+          ) : (
             <table>
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Producto</th>
-                  <th style={{ width: 110 }}>Cantidad</th>
-                  <th style={{ width: 110 }}>Stock actual</th>
+                  <th style={{ width: 120 }}>Cantidad</th>
+                  <th style={{ width: 100 }}>Stock</th>
                   <th>Nota</th>
                   <th style={{ width: 36 }}></th>
                 </tr>
@@ -601,8 +733,9 @@ function ShoppingListModal({ allProducts, onClose }) {
               <tbody>
                 {items.map((it, idx) => (
                   <tr key={idx}>
+                    <td className="text-muted" style={{ fontSize: 12, width: 32 }}>{idx + 1}</td>
                     <td>
-                      {it.nombre}
+                      <span>{it.nombre}</span>
                       {it.esPersonalizado && (
                         <span className="badge badge-accent" style={{ marginLeft: 6 }}>Extra</span>
                       )}
@@ -615,7 +748,7 @@ function ShoppingListModal({ allProducts, onClose }) {
                           step="any"
                           value={it.cantidad}
                           onChange={(e) => updateItem(idx, 'cantidad', e.target.value)}
-                          style={{ width: 64, padding: '5px 8px' }}
+                          style={{ width: 60, padding: '5px 8px' }}
                         />
                         <span className="text-muted" style={{ fontSize: 12 }}>{it.unidad}</span>
                       </div>
@@ -628,62 +761,29 @@ function ShoppingListModal({ allProducts, onClose }) {
                         type="text"
                         value={it.nota}
                         onChange={(e) => updateItem(idx, 'nota', e.target.value)}
-                        placeholder="Nota opcional"
+                        placeholder="Nota..."
                         style={{ padding: '5px 8px', fontSize: 12 }}
                       />
                     </td>
                     <td>
-                      <button className="icon-btn" onClick={() => removeItem(idx)}>✕</button>
+                      <button className="icon-btn" onClick={() => removeItem(idx)} title="Quitar">✕</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-
-        <div style={{
-          background: 'var(--color-surface-alt)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 14px',
-          marginBottom: 16,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
-            Agregar ítem extra
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'end' }}>
-            <input
-              type="text"
-              value={nuevoNombre}
-              onChange={(e) => setNuevoNombre(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
-              placeholder="Nombre del producto o insumo..."
-            />
-            <input
-              type="number"
-              min="1"
-              step="any"
-              value={nuevaCantidad}
-              onChange={(e) => setNuevaCantidad(e.target.value)}
-              style={{ width: 64 }}
-              placeholder="Cant."
-            />
-            <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={{ width: 100 }}>
-              <option value="unidad">Unidad</option>
-              <option value="kg">Kg</option>
-              <option value="litro">Litro</option>
-              <option value="paquete">Paquete</option>
-              <option value="caja">Caja</option>
-            </select>
-            <button className="btn btn-sm" onClick={addCustom}>Agregar</button>
-          </div>
+          )}
         </div>
 
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
           {items.length > 0 && (
-            <button className="btn" onClick={imprimir}>🖨️ Imprimir lista</button>
+            <button className="btn btn-secondary" onClick={imprimir}>🖨️ Imprimir</button>
+          )}
+          {items.length > 0 && (
+            <button className="btn" onClick={() => onCreateOrder(items)}>
+              🛒 Crear orden a proveedor
+            </button>
           )}
         </div>
       </div>

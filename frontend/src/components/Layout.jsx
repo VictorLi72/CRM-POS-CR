@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/inventory', label: 'Inventario', icon: '📦', roles: ['administrador', 'supervisor'] },
   { to: '/customers', label: 'Clientes', icon: '👥', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/orders', label: 'Pedidos', icon: '📋', roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/purchase-orders', label: 'Órdenes de compra', icon: '🛒', roles: ['administrador', 'supervisor'] },
   { to: '/returns', label: 'Devoluciones', icon: '↩️', roles: ['administrador', 'supervisor'] },
   { to: '/sales-history', label: 'Historial de ventas', icon: '📜', roles: ['administrador', 'supervisor'] },
   { to: '/cash-register', label: 'Cierre de caja', icon: '🗄️', roles: ['administrador', 'supervisor', 'cajero'] },
