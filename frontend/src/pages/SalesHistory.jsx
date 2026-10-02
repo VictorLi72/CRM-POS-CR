@@ -151,14 +151,25 @@ export default function SalesHistory() {
         </table>
       </div>
 
-      {selected && <SaleDetailModal sale={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <SaleDetailModal
+          sale={selected}
+          onClose={() => setSelected(null)}
+          onAnulada={(id) => {
+            setSales((prev) => prev.map((s) => s.id === id ? { ...s, estado: 'anulada', tiene_devolucion: false } : s));
+          }}
+        />
+      )}
     </Layout>
   );
 }
 
-function SaleDetailModal({ sale, onClose }) {
+function SaleDetailModal({ sale, onClose, onAnulada }) {
   const [imprimiendo, setImprimiendo] = useState(false);
   const [errorImpresion, setErrorImpresion] = useState('');
+  const [anulando, setAnulando] = useState(false);
+  const [confirmAnular, setConfirmAnular] = useState(false);
+  const [errorAnular, setErrorAnular] = useState('');
   const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
 
   async function imprimir() {
@@ -171,6 +182,21 @@ function SaleDetailModal({ sale, onClose }) {
       setErrorImpresion('No se pudo imprimir. Revisá la impresora en Configuración.');
     } finally {
       setImprimiendo(false);
+    }
+  }
+
+  async function handleAnular() {
+    setAnulando(true);
+    setErrorAnular('');
+    try {
+      await api.post(`/sales/${sale.id}/cancel`);
+      onAnulada(sale.id);
+      onClose();
+    } catch (err) {
+      setErrorAnular(err.response?.data?.error || 'No se pudo anular la venta');
+      setConfirmAnular(false);
+    } finally {
+      setAnulando(false);
     }
   }
 
@@ -225,8 +251,27 @@ function SaleDetailModal({ sale, onClose }) {
           )}
         </div>
         {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}
+        {errorAnular && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorAnular}</div>}
+        {confirmAnular && (
+          <div className="alert alert-danger" style={{ marginTop: 12 }}>
+            <strong>¿Anular esta venta?</strong> Se revertirá el stock y no se puede deshacer.
+            <div className="flex gap-8" style={{ marginTop: 8 }}>
+              <button className="btn btn-danger btn-sm" onClick={handleAnular} disabled={anulando}>
+                {anulando ? 'Anulando...' : 'Sí, anular'}
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setConfirmAnular(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+          {sale.estado !== 'anulada' && !confirmAnular && (
+            <button className="btn btn-danger" onClick={() => setConfirmAnular(true)}>
+              Anular venta
+            </button>
+          )}
           {tieneAPIImpresion && (
             <button className="btn" onClick={imprimir} disabled={imprimiendo}>
               {imprimiendo ? 'Imprimiendo...' : '🖨️ Reimprimir tiquete'}

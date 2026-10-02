@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/pos', label: 'Punto de Venta', icon: '🧾', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/inventory', label: 'Inventario', icon: '📦', roles: ['administrador', 'supervisor'] },
   { to: '/customers', label: 'Clientes', icon: '👥', roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/orders', label: 'Pedidos', icon: '📋', roles: ['administrador', 'supervisor', 'cajero'] },
   { to: '/returns', label: 'Devoluciones', icon: '↩️', roles: ['administrador', 'supervisor'] },
   { to: '/sales-history', label: 'Historial de ventas', icon: '📜', roles: ['administrador', 'supervisor'] },
   { to: '/cash-register', label: 'Cierre de caja', icon: '🗄️', roles: ['administrador', 'supervisor', 'cajero'] },
@@ -35,7 +36,7 @@ export default function Layout({ title, topbarExtra, children }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          CRM Super CR
+          <div className="sidebar-brand-name">CRM Super CR</div>
           <span className="sidebar-brand-subtitle">Punto de Venta &amp; Gestión</span>
         </div>
         <nav className="sidebar-nav">

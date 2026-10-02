@@ -9,6 +9,12 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 button, input, select, textarea {
@@ -16,4 +22,18 @@ button, input, select, textarea {
   font-size: inherit;
 }
 
-a { color: var(--color-accent); text-decoration: none; }
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover { color: var(--color-primary); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-light); }

@@ -12,6 +12,7 @@ import Users from './pages/Users.jsx';
 import TaxAndDiscounts from './pages/TaxAndDiscounts.jsx';
 import Promotions from './pages/Promotions.jsx';
 import Settings from './pages/Settings.jsx';
+import Orders from './pages/Orders.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 export default function App() {
@@ -112,6 +113,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={['administrador', 'supervisor', 'cajero']}>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor', 'cajero']}>
+            <Orders />
           </ProtectedRoute>
         }
       />
