@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency } from '../utils/format';
@@ -507,6 +508,28 @@ function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevaUnidad, setNuevaUnidad] = useState('unidad');
   const [nuevaCantidad, setNuevaCantidad] = useState('1');
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [showQR, setShowQR] = useState(false);
+  const [localIp, setLocalIp] = useState(null);
+
+  // Detecta la IP local via WebRTC para generar URL accesible desde el teléfono
+  useEffect(() => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then((o) => pc.setLocalDescription(o));
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return;
+        const m = /(\d{1,3}\.){3}\d{1,3}/.exec(e.candidate.candidate);
+        if (m && !m[0].startsWith('127.') && !m[0].startsWith('169.254.')) {
+          setLocalIp(m[0]);
+          pc.close();
+        }
+      };
+    } catch {
+      // WebRTC no disponible
+    }
+  }, []);
 
   const addedIds = new Set(items.filter((it) => it.id).map((it) => it.id));
   const sugerencias = allProducts
@@ -553,6 +576,26 @@ function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
     }]);
     setNuevoNombre('');
     setNuevaCantidad('1');
+  }
+
+  async function abrirQR() {
+    const fecha = new Date().toLocaleDateString('es-CR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const compact = items.map((it) => ({
+      n: it.nombre,
+      c: it.cantidad,
+      u: it.unidad,
+      ...(it.nota ? { nota: it.nota } : {}),
+    }));
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+    const host = localIp ? `${localIp}:${window.location.port || 5173}` : window.location.host;
+    const url = `http://${host}/#/lista-compras?d=${encoded}&f=${encodeURIComponent(fecha)}`;
+    try {
+      const dataUrl = await QRCode.toDataURL(url, { width: 260, margin: 2, errorCorrectionLevel: 'M' });
+      setQrDataUrl(dataUrl);
+      setShowQR(true);
+    } catch (err) {
+      console.error('Error generando QR:', err);
+    }
   }
 
   function imprimir() {
@@ -781,11 +824,68 @@ function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
             <button className="btn btn-secondary" onClick={imprimir}>🖨️ Imprimir</button>
           )}
           {items.length > 0 && (
+            <button className="btn btn-secondary" onClick={abrirQR}>📱 QR teléfono</button>
+          )}
+          {items.length > 0 && (
             <button className="btn" onClick={() => onCreateOrder(items)}>
               🛒 Crear orden a proveedor
             </button>
           )}
         </div>
+
+        {/* Sub-modal QR */}
+        {showQR && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onClick={() => setShowQR(false)}
+          >
+            <div
+              style={{
+                background: '#fff', borderRadius: 16, padding: '28px 28px 24px',
+                maxWidth: 340, width: '90vw', textAlign: 'center',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#0f1923' }}>
+                Abrir lista en el teléfono
+              </div>
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+                {localIp
+                  ? <>Escaneá el QR con la cámara de tu teléfono.<br />El teléfono debe estar en el <strong>mismo WiFi</strong>.</>
+                  : <>Escaneá el QR desde la <strong>misma computadora</strong> o compartí el enlace.</>
+                }
+              </div>
+              {qrDataUrl && (
+                <img
+                  src={qrDataUrl}
+                  alt="QR Lista de compras"
+                  style={{ width: 220, height: 220, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                />
+              )}
+              <div style={{
+                marginTop: 14, fontSize: 11, color: '#94a3b8',
+                wordBreak: 'break-all', lineHeight: 1.5,
+              }}>
+                {localIp
+                  ? `Red: ${localIp}:${window.location.port || 5173}`
+                  : 'Detectá la IP local conectándote desde el teléfono'
+                }
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: 16, width: '100%' }}
+                onClick={() => setShowQR(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

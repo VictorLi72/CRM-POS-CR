@@ -14,6 +14,7 @@ import Promotions from './pages/Promotions.jsx';
 import Settings from './pages/Settings.jsx';
 import Orders from './pages/Orders.jsx';
 import PurchaseOrders from './pages/PurchaseOrders.jsx';
+import ListaCompras from './pages/ListaCompras.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 export default function App() {
@@ -133,6 +134,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route path="/lista-compras" element={<ListaCompras />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
