@@ -35,6 +35,7 @@ export default function Inventory() {
   const [newCategory, setNewCategory] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [stockModalProduct, setStockModalProduct] = useState(null);
+  const [showShoppingList, setShowShoppingList] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -159,6 +160,9 @@ export default function Inventory() {
           <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)}>
             Categorías
           </button>
+          <button className="btn btn-secondary" onClick={() => setShowShoppingList(true)}>
+            📋 Lista de compras
+          </button>
           <button className="btn" onClick={() => setModalProduct({ ...EMPTY_PRODUCT })}>
             + Nuevo producto
           </button>
@@ -241,6 +245,10 @@ export default function Inventory() {
             loadProducts();
           }}
         />
+      )}
+
+      {showShoppingList && (
+        <ShoppingListModal allProducts={products} onClose={() => setShowShoppingList(false)} />
       )}
 
       {showCategoryModal && (
@@ -455,6 +463,228 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn" onClick={() => onSave(form)}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShoppingListModal({ allProducts, onClose }) {
+  const lowStock = allProducts.filter((p) => Number(p.existencia) <= Number(p.existencia_minima));
+
+  const [items, setItems] = useState(() =>
+    lowStock.map((p) => ({
+      nombre: p.nombre,
+      unidad: p.unidad_medida || 'unidad',
+      existencia: Number(p.existencia),
+      minimo: Number(p.existencia_minima),
+      cantidad: Math.max(1, Math.ceil(Number(p.existencia_minima) - Number(p.existencia))),
+      nota: '',
+      esPersonalizado: false,
+    }))
+  );
+
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaUnidad, setNuevaUnidad] = useState('unidad');
+  const [nuevaCantidad, setNuevaCantidad] = useState('1');
+
+  function updateItem(i, field, value) {
+    setItems((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], [field]: value };
+      return next;
+    });
+  }
+
+  function removeItem(i) {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function addCustom() {
+    if (!nuevoNombre.trim()) return;
+    setItems((prev) => [...prev, {
+      nombre: nuevoNombre.trim(),
+      unidad: nuevaUnidad,
+      existencia: null,
+      minimo: null,
+      cantidad: Number(nuevaCantidad) || 1,
+      nota: '',
+      esPersonalizado: true,
+    }]);
+    setNuevoNombre('');
+    setNuevaCantidad('1');
+  }
+
+  function imprimir() {
+    const fecha = new Date().toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const filas = items.map((it) => `
+      <tr>
+        <td>${it.nombre}</td>
+        <td style="text-align:center">${it.cantidad} ${it.unidad}</td>
+        <td>${it.existencia !== null ? `${it.existencia} / ${it.minimo}` : '—'}</td>
+        <td>${it.nota || ''}</td>
+        <td style="width:80px;border:1px solid #ccc">&nbsp;</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lista de compras</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; margin: 24px; }
+    h2 { margin: 0 0 4px; }
+    .sub { color: #666; margin-bottom: 16px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f0f0f0; text-align: left; padding: 7px 10px; border-bottom: 2px solid #ccc; font-size: 11px; text-transform: uppercase; }
+    td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .badge { background: #fef2f2; color: #c00; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h2>Lista de compras</h2>
+  <div class="sub">Generada el ${fecha}</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Cantidad a pedir</th>
+        <th>Stock actual / mínimo</th>
+        <th>Nota</th>
+        <th>✓ Conseguido</th>
+      </tr>
+    </thead>
+    <tbody>${filas}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        style={{ width: 680, maxWidth: '96vw' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center" style={{ marginBottom: 4 }}>
+          <h2 style={{ margin: 0 }}>Lista de compras</h2>
+          <span className="badge badge-warning">{items.length} ítems</span>
+        </div>
+        <p className="text-muted" style={{ marginTop: 0, marginBottom: 16, fontSize: 13 }}>
+          Los productos con stock bajo se agregan automáticamente. Podés editar cantidades o agregar ítems extra.
+        </p>
+
+        {items.length === 0 && (
+          <div className="alert alert-success">Todo el inventario está sobre el stock mínimo.</div>
+        )}
+
+        {items.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style={{ width: 110 }}>Cantidad</th>
+                  <th style={{ width: 110 }}>Stock actual</th>
+                  <th>Nota</th>
+                  <th style={{ width: 36 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it, idx) => (
+                  <tr key={idx}>
+                    <td>
+                      {it.nombre}
+                      {it.esPersonalizado && (
+                        <span className="badge badge-accent" style={{ marginLeft: 6 }}>Extra</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="flex gap-8 items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={it.cantidad}
+                          onChange={(e) => updateItem(idx, 'cantidad', e.target.value)}
+                          style={{ width: 64, padding: '5px 8px' }}
+                        />
+                        <span className="text-muted" style={{ fontSize: 12 }}>{it.unidad}</span>
+                      </div>
+                    </td>
+                    <td className="text-muted" style={{ fontSize: 12 }}>
+                      {it.existencia !== null ? `${it.existencia} / ${it.minimo}` : '—'}
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={it.nota}
+                        onChange={(e) => updateItem(idx, 'nota', e.target.value)}
+                        placeholder="Nota opcional"
+                        style={{ padding: '5px 8px', fontSize: 12 }}
+                      />
+                    </td>
+                    <td>
+                      <button className="icon-btn" onClick={() => removeItem(idx)}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div style={{
+          background: 'var(--color-surface-alt)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 14px',
+          marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+            Agregar ítem extra
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'end' }}>
+            <input
+              type="text"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              placeholder="Nombre del producto o insumo..."
+            />
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={nuevaCantidad}
+              onChange={(e) => setNuevaCantidad(e.target.value)}
+              style={{ width: 64 }}
+              placeholder="Cant."
+            />
+            <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)} style={{ width: 100 }}>
+              <option value="unidad">Unidad</option>
+              <option value="kg">Kg</option>
+              <option value="litro">Litro</option>
+              <option value="paquete">Paquete</option>
+              <option value="caja">Caja</option>
+            </select>
+            <button className="btn btn-sm" onClick={addCustom}>Agregar</button>
+          </div>
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+          {items.length > 0 && (
+            <button className="btn" onClick={imprimir}>🖨️ Imprimir lista</button>
+          )}
         </div>
       </div>
     </div>
