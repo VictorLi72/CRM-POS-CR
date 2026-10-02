@@ -1,9 +1,9 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.ClienteRequest;
-import com.crmsuper.pos.dto.PagoCreditoResponse;
-import com.crmsuper.pos.dto.PaymentRequest;
-import com.crmsuper.pos.dto.VentaResponse;
+import com.crmsuper.pos.dto.cliente.ClienteRequest;
+import com.crmsuper.pos.dto.pago.PagoCreditoResponse;
+import com.crmsuper.pos.dto.venta.PaymentRequest;
+import com.crmsuper.pos.dto.venta.VentaResponse;
 import com.crmsuper.pos.model.Cliente;
 import com.crmsuper.pos.security.AuthenticatedUser;
 

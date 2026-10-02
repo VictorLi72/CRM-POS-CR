@@ -1,6 +1,6 @@
-package com.crmsuper.pos.controller;
+﻿package com.crmsuper.pos.controller;
 
-import com.crmsuper.pos.dto.DescuentoRequest;
+import com.crmsuper.pos.dto.catalogo.DescuentoRequest;
 import com.crmsuper.pos.model.Descuento;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.DiscountService;

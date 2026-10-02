@@ -1,11 +1,11 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.DashboardSummaryResponse;
-import com.crmsuper.pos.dto.ProfitRow;
-import com.crmsuper.pos.dto.SalesByCashierRow;
-import com.crmsuper.pos.dto.SalesByCategoryRow;
-import com.crmsuper.pos.dto.SalesByDayRow;
-import com.crmsuper.pos.dto.SalesByProductRow;
+import com.crmsuper.pos.dto.reporte.DashboardSummaryResponse;
+import com.crmsuper.pos.dto.reporte.ProfitRow;
+import com.crmsuper.pos.dto.reporte.SalesByCashierRow;
+import com.crmsuper.pos.dto.reporte.SalesByCategoryRow;
+import com.crmsuper.pos.dto.reporte.SalesByDayRow;
+import com.crmsuper.pos.dto.reporte.SalesByProductRow;
 
 import java.util.List;
 

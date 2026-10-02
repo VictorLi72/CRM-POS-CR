@@ -1,8 +1,8 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.CreateUserRequest;
-import com.crmsuper.pos.dto.UpdateUserRequest;
-import com.crmsuper.pos.dto.UsuarioResponse;
+import com.crmsuper.pos.dto.auth.CreateUserRequest;
+import com.crmsuper.pos.dto.auth.UpdateUserRequest;
+import com.crmsuper.pos.dto.auth.UsuarioResponse;
 import com.crmsuper.pos.security.AuthenticatedUser;
 
 import java.util.List;

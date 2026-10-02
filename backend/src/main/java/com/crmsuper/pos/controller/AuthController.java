@@ -1,9 +1,9 @@
-package com.crmsuper.pos.controller;
+﻿package com.crmsuper.pos.controller;
 
-import com.crmsuper.pos.dto.LoginRequest;
-import com.crmsuper.pos.dto.LoginResponse;
-import com.crmsuper.pos.dto.MeResponse;
-import com.crmsuper.pos.dto.UserInfo;
+import com.crmsuper.pos.dto.auth.LoginRequest;
+import com.crmsuper.pos.dto.auth.LoginResponse;
+import com.crmsuper.pos.dto.auth.MeResponse;
+import com.crmsuper.pos.dto.auth.UserInfo;
 import com.crmsuper.pos.security.AuthenticatedUser;
 import com.crmsuper.pos.service.AuthService;
 import jakarta.validation.Valid;

@@ -1,6 +1,13 @@
 package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.*;
+import com.crmsuper.pos.dto.reporte.DashboardSummaryResponse;
+import com.crmsuper.pos.dto.reporte.SalesByDayRow;
+import com.crmsuper.pos.dto.reporte.SalesByProductRow;
+import com.crmsuper.pos.dto.reporte.SalesByCategoryRow;
+import com.crmsuper.pos.dto.reporte.SalesByCashierRow;
+import com.crmsuper.pos.dto.reporte.ProductoTopRow;
+import com.crmsuper.pos.dto.reporte.ProfitRow;
+import com.crmsuper.pos.dto.reporte.TotalCantidadRow;
 import com.crmsuper.pos.service.ReportService;
 import com.crmsuper.pos.util.CrDateUtils;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;

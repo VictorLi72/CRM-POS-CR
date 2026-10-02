@@ -1,6 +1,6 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.TarifaIvaRequest;
+import com.crmsuper.pos.dto.catalogo.TarifaIvaRequest;
 import com.crmsuper.pos.model.TarifaIva;
 import com.crmsuper.pos.security.AuthenticatedUser;
 

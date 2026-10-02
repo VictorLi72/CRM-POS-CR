@@ -1,6 +1,6 @@
-package com.crmsuper.pos.service.impl;
+﻿package com.crmsuper.pos.service.impl;
 
-import com.crmsuper.pos.dto.DescuentoRequest;
+import com.crmsuper.pos.dto.catalogo.DescuentoRequest;
 import com.crmsuper.pos.exception.ApiException;
 import com.crmsuper.pos.model.Descuento;
 import com.crmsuper.pos.model.enums.TipoAccion;

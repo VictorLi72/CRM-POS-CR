@@ -1,9 +1,9 @@
-package com.crmsuper.pos.service;
+﻿package com.crmsuper.pos.service;
 
-import com.crmsuper.pos.dto.DevolucionRequest;
-import com.crmsuper.pos.dto.DevolucionResponse;
-import com.crmsuper.pos.dto.SaleRequest;
-import com.crmsuper.pos.dto.VentaResponse;
+import com.crmsuper.pos.dto.devolucion.DevolucionRequest;
+import com.crmsuper.pos.dto.devolucion.DevolucionResponse;
+import com.crmsuper.pos.dto.venta.SaleRequest;
+import com.crmsuper.pos.dto.venta.VentaResponse;
 import com.crmsuper.pos.security.AuthenticatedUser;
 
 import java.util.List;
