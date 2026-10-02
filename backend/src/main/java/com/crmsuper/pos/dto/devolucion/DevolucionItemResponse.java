@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.devolucion;
+package com.crmsuper.pos.dto.devolucion;
 
 import java.math.BigDecimal;
 

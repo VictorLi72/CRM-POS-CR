@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.turno;
+package com.crmsuper.pos.dto.turno;
 
 import com.crmsuper.pos.model.enums.EstadoTurno;
 import com.fasterxml.jackson.annotation.JsonInclude;

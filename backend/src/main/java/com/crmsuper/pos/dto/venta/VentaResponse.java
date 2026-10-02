@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.venta;
+package com.crmsuper.pos.dto.venta;
 
 import com.crmsuper.pos.model.enums.EstadoVenta;
 import com.crmsuper.pos.model.enums.MetodoPago;
@@ -28,10 +28,17 @@ public class VentaResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<DetalleVentaResponse> items;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<PagoMixtoItem> pagos;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final Boolean tieneDevolucion;
+
     public VentaResponse(Long id, Long folio, Long usuarioId, String cajeroNombre, Long clienteId,
                           String clienteNombre, BigDecimal subtotal, BigDecimal descuentoTotal, BigDecimal ivaTotal,
                           BigDecimal total, MetodoPago metodoPago, BigDecimal montoRecibido, BigDecimal vuelto,
-                          EstadoVenta estado, Instant creadoEn, List<DetalleVentaResponse> items) {
+                          EstadoVenta estado, Instant creadoEn, List<DetalleVentaResponse> items,
+                          List<PagoMixtoItem> pagos, Boolean tieneDevolucion) {
         this.id = id;
         this.folio = folio;
         this.usuarioId = usuarioId;
@@ -48,6 +55,8 @@ public class VentaResponse {
         this.estado = estado;
         this.creadoEn = creadoEn;
         this.items = items;
+        this.pagos = pagos;
+        this.tieneDevolucion = tieneDevolucion;
     }
 
     public static Builder builder() {
@@ -118,6 +127,14 @@ public class VentaResponse {
         return items;
     }
 
+    public List<PagoMixtoItem> getPagos() {
+        return pagos;
+    }
+
+    public Boolean getTieneDevolucion() {
+        return tieneDevolucion;
+    }
+
     public static class Builder {
         private Long id;
         private Long folio;
@@ -135,6 +152,8 @@ public class VentaResponse {
         private EstadoVenta estado;
         private Instant creadoEn;
         private List<DetalleVentaResponse> items;
+        private List<PagoMixtoItem> pagos;
+        private Boolean tieneDevolucion;
 
         public Builder id(Long id) {
             this.id = id;
@@ -216,9 +235,20 @@ public class VentaResponse {
             return this;
         }
 
+        public Builder pagos(List<PagoMixtoItem> pagos) {
+            this.pagos = pagos;
+            return this;
+        }
+
+        public Builder tieneDevolucion(Boolean tieneDevolucion) {
+            this.tieneDevolucion = tieneDevolucion;
+            return this;
+        }
+
         public VentaResponse build() {
             return new VentaResponse(id, folio, usuarioId, cajeroNombre, clienteId, clienteNombre, subtotal,
-                    descuentoTotal, ivaTotal, total, metodoPago, montoRecibido, vuelto, estado, creadoEn, items);
+                    descuentoTotal, ivaTotal, total, metodoPago, montoRecibido, vuelto, estado, creadoEn, items, pagos,
+                    tieneDevolucion);
         }
     }
 }

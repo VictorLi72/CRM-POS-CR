@@ -14,6 +14,13 @@ const PAYMENT_METHODS = [
   { value: 'tarjeta', label: '💳 Tarjeta', shortcut: 'F2' },
   { value: 'sinpe', label: '📱 SINPE Móvil', shortcut: 'F3' },
   { value: 'fiado', label: '📒 Fiado', shortcut: 'F4' },
+  { value: 'mixto', label: '💱 Pago Mixto', shortcut: 'F5' },
+];
+
+const MIXTO_METHODS = [
+  { key: 'efectivo', label: '💵 Efectivo' },
+  { key: 'tarjeta', label: '💳 Tarjeta' },
+  { key: 'sinpe', label: '📱 SINPE' },
 ];
 
 export default function POS() {
@@ -33,6 +40,7 @@ export default function POS() {
   const [discounts, setDiscounts] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
+  const [mixtoAmounts, setMixtoAmounts] = useState({ efectivo: '', tarjeta: '', sinpe: '' });
   const [processing, setProcessing] = useState(false);
   const [lastSale, setLastSale] = useState(null);
   const scanInputRef = useRef(null);
@@ -96,6 +104,9 @@ export default function POS() {
       } else if (e.key === 'F4') {
         e.preventDefault();
         setPaymentMethod('fiado');
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        setPaymentMethod('mixto');
       } else if (e.key === 'F9' || (e.key === 'Enter' && !isFormField)) {
         if (cartRef.current.length > 0 && !processingRef.current) {
           e.preventDefault();
@@ -305,6 +316,7 @@ export default function POS() {
     setSelectedProductId(null);
     setLastSale(null);
     setAmountTendered('');
+    setMixtoAmounts({ efectivo: '', tarjeta: '', sinpe: '' });
     setCustomerId('');
     setPaymentMethod('efectivo');
   }
@@ -330,6 +342,17 @@ export default function POS() {
       ? REDONDEAR(Number(amountTendered) - totals.total)
       : null;
 
+  const sumMixto = REDONDEAR(
+    Object.values(mixtoAmounts).reduce((a, v) => a + (Number(v) || 0), 0)
+  );
+  const mixtoEfectivo = Number(mixtoAmounts.efectivo) || 0;
+  const mixtoOtros = sumMixto - mixtoEfectivo;
+  const mixtoFaltaParaEfectivo = Math.max(0, totals.total - mixtoOtros);
+  const cambioMixto = mixtoEfectivo > mixtoFaltaParaEfectivo
+    ? REDONDEAR(mixtoEfectivo - mixtoFaltaParaEfectivo)
+    : 0;
+  const mixtoFalta = Math.max(0, REDONDEAR(totals.total - sumMixto));
+
   async function handleCheckout() {
     if (cart.length === 0) return;
     if (paymentMethod === 'fiado' && !customerId) {
@@ -340,10 +363,14 @@ export default function POS() {
       setScanError('El monto recibido es menor al total');
       return;
     }
+    if (paymentMethod === 'mixto' && sumMixto < totals.total) {
+      setScanError('El total de pagos no cubre el monto de la venta');
+      return;
+    }
     setProcessing(true);
     setScanError('');
     try {
-      const payload = {
+      const basePayload = {
         items: cart.map((line) => ({
           producto_id: line.producto.id,
           cantidad: line.cantidad,
@@ -351,14 +378,28 @@ export default function POS() {
           descuento: line.descuento,
         })),
         cliente_id: customerId || null,
-        metodo_pago: paymentMethod,
-        monto_recibido: paymentMethod === 'efectivo' ? Number(amountTendered) || totals.total : undefined,
       };
+
+      let payload;
+      if (paymentMethod === 'mixto') {
+        const pagos = MIXTO_METHODS
+          .map((m) => ({ metodo: m.key, monto: Number(mixtoAmounts[m.key]) || 0 }))
+          .filter((p) => p.monto > 0);
+        payload = { ...basePayload, pagos };
+      } else {
+        payload = {
+          ...basePayload,
+          metodo_pago: paymentMethod,
+          monto_recibido: paymentMethod === 'efectivo' ? Number(amountTendered) || totals.total : undefined,
+        };
+      }
+
       const res = await api.post('/sales', payload);
       setLastSale(res.data);
       setCart([]);
       setSelectedProductId(null);
       setAmountTendered('');
+      setMixtoAmounts({ efectivo: '', tarjeta: '', sinpe: '' });
     } catch (err) {
       setScanError(err.response?.data?.error || 'No se pudo procesar la venta');
     } finally {
@@ -640,7 +681,7 @@ export default function POS() {
                 <button
                   key={m.value}
                   type="button"
-                  className={'payment-option' + (paymentMethod === m.value ? ' active' : '')}
+                  className={'payment-option' + (paymentMethod === m.value ? ' active' : '') + (m.value === 'mixto' ? ' payment-option-full' : '')}
                   onClick={() => setPaymentMethod(m.value)}
                 >
                   {m.label}
@@ -664,13 +705,41 @@ export default function POS() {
                 )}
               </div>
             )}
+            {paymentMethod === 'mixto' && (
+              <div style={{ marginBottom: 10 }}>
+                {MIXTO_METHODS.map((m) => (
+                  <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, width: 100, flexShrink: 0 }}>{m.label}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={mixtoAmounts[m.key]}
+                      onChange={(e) => setMixtoAmounts((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                      placeholder="0"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                ))}
+                {mixtoFalta > 0 && (
+                  <div className="text-muted" style={{ fontSize: 13 }}>
+                    Falta: <strong style={{ color: 'var(--color-danger, #dc2626)' }}>{formatCurrency(mixtoFalta)}</strong>
+                  </div>
+                )}
+                {cambioMixto > 0 && (
+                  <div className="text-muted" style={{ fontSize: 13 }}>
+                    Vuelto efectivo: <strong>{formatCurrency(cambioMixto)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
             {paymentMethod === 'fiado' && !customerId && (
               <div className="alert alert-warning">Debe seleccionar un cliente para venta fiada</div>
             )}
             <button
               className="btn"
               style={{ width: '100%', marginTop: 8, fontSize: 16, padding: '14px 16px' }}
-              disabled={cart.length === 0 || processing}
+              disabled={cart.length === 0 || processing || (paymentMethod === 'mixto' && mixtoFalta > 0)}
               onClick={handleCheckout}
             >
               {processing ? 'Procesando...' : `Cobrar ${formatCurrency(totals.total)}`}
@@ -684,7 +753,7 @@ export default function POS() {
               Cancelar venta
             </button>
             <p className="text-muted keyboard-hint">
-              F1-F4 pago · Enter/F9 cobrar · Esc cancelar
+              F1-F5 pago · Enter/F9 cobrar · Esc cancelar
               <br />
               ↑↓ elegir producto · +/− cantidad · Supr quitar
             </p>
@@ -768,10 +837,19 @@ function Receipt({ sale, cashier, onNewSale }) {
         <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 18 }}>
           <span>Total</span><span>{formatCurrency(sale.total)}</span>
         </div>
-        {sale.metodo_pago === 'efectivo' && (
+        {sale.metodo_pago === 'mixto' && sale.pagos ? (
+          sale.pagos.map((p, i) => (
+            <div key={i} className="flex justify-between">
+              <span className="text-muted">{p.metodo === 'efectivo' ? '💵 Efectivo' : p.metodo === 'tarjeta' ? '💳 Tarjeta' : '📱 SINPE'}</span>
+              <span>{formatCurrency(p.monto)}</span>
+            </div>
+          ))
+        ) : (
+          <div className="flex justify-between"><span className="text-muted">Pago</span><span>{sale.metodo_pago}</span></div>
+        )}
+        {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
           <div className="flex justify-between"><span className="text-muted">Vuelto</span><span>{formatCurrency(sale.vuelto)}</span></div>
         )}
-        <div className="flex justify-between"><span className="text-muted">Pago</span><span>{sale.metodo_pago}</span></div>
         <div className="flex justify-between"><span className="text-muted">Cajero</span><span>{cashier}</span></div>
       </div>
       {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}

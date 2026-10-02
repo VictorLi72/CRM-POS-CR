@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.turno;
+package com.crmsuper.pos.dto.turno;
 
 import java.math.BigDecimal;
 

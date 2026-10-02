@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.auditoria;
+package com.crmsuper.pos.dto.auditoria;
 
 import com.crmsuper.pos.model.enums.TipoAccion;
 

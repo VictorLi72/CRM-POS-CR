@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service;
+package com.crmsuper.pos.service;
 
 import com.crmsuper.pos.dto.catalogo.CategoriaRequest;
 import com.crmsuper.pos.dto.reporte.MovimientoResponse;

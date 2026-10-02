@@ -198,6 +198,10 @@
   color: var(--color-primary);
 }
 
+.payment-option-full {
+  grid-column: 1 / -1;
+}
+
 .keyboard-hint {
   text-align: center;
   font-size: 11px;

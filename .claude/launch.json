@@ -19,6 +19,16 @@
         "D:\\CRM-POS-CR\\frontend"
       ],
       "port": 5173
+    },
+    {
+      "name": "electron-dev",
+      "runtimeExecutable": "C:\\Users\\victo\\AppData\\Local\\dev-tools\\node\\node.exe",
+      "runtimeArgs": [
+        "D:\\CRM-POS-CR\\frontend\\node_modules\\.bin\\electron",
+        "D:\\CRM-POS-CR\\frontend"
+      ],
+      "port": 5173,
+      "url": "http://localhost:5173"
     }
   ]
 }

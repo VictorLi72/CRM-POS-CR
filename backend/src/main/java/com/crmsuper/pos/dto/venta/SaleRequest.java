@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.venta;
+package com.crmsuper.pos.dto.venta;
 
 import com.crmsuper.pos.model.enums.MetodoPago;
 
@@ -11,6 +11,7 @@ public class SaleRequest {
     private MetodoPago metodoPago;
     private BigDecimal montoRecibido;
     private BigDecimal descuentoTotal;
+    private List<PagoMixtoItem> pagos;
 
     public List<SaleItemRequest> getItems() {
         return items;
@@ -50,5 +51,13 @@ public class SaleRequest {
 
     public void setDescuentoTotal(BigDecimal descuentoTotal) {
         this.descuentoTotal = descuentoTotal;
+    }
+
+    public List<PagoMixtoItem> getPagos() {
+        return pagos;
+    }
+
+    public void setPagos(List<PagoMixtoItem> pagos) {
+        this.pagos = pagos;
     }
 }

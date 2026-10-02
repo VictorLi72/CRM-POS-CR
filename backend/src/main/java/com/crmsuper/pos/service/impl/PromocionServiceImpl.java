@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service.impl;
+package com.crmsuper.pos.service.impl;
 
 import com.crmsuper.pos.dto.promocion.PromocionRequest;
 import com.crmsuper.pos.dto.promocion.PromocionResponse;

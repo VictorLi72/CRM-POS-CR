@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.turno;
+package com.crmsuper.pos.dto.turno;
 
 import com.crmsuper.pos.dto.reporte.VentasPorMetodoRow;
 import java.math.BigDecimal;

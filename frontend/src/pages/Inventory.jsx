@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency } from '../utils/format';
@@ -22,6 +23,7 @@ const EMPTY_PRODUCT = {
 
 export default function Inventory() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [ivaRates, setIvaRates] = useState([]);
@@ -35,6 +37,7 @@ export default function Inventory() {
   const [newCategory, setNewCategory] = useState('');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [stockModalProduct, setStockModalProduct] = useState(null);
+  const [showShoppingList, setShowShoppingList] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -159,6 +162,9 @@ export default function Inventory() {
           <button className="btn btn-secondary" onClick={() => setShowCategoryModal(true)}>
             Categorías
           </button>
+          <button className="btn btn-secondary" onClick={() => setShowShoppingList(true)}>
+            📋 Lista de compras
+          </button>
           <button className="btn" onClick={() => setModalProduct({ ...EMPTY_PRODUCT })}>
             + Nuevo producto
           </button>
@@ -239,6 +245,27 @@ export default function Inventory() {
           onSaved={() => {
             setStockModalProduct(null);
             loadProducts();
+          }}
+        />
+      )}
+
+      {showShoppingList && (
+        <ShoppingListModal
+          allProducts={products}
+          onClose={() => setShowShoppingList(false)}
+          onCreateOrder={(items) => {
+            setShowShoppingList(false);
+            navigate('/purchase-orders', {
+              state: {
+                newOrder: true,
+                items: items.map((it) => ({
+                  productoNombre: it.nombre,
+                  cantidad: String(it.cantidad),
+                  precioUnitario: '',
+                  nota: it.nota || '',
+                })),
+              },
+            });
           }}
         />
       )}
@@ -456,6 +483,409 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn" onClick={() => onSave(form)}>Guardar</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
+  const lowStock = allProducts.filter((p) => Number(p.existencia) <= Number(p.existencia_minima));
+
+  const [items, setItems] = useState(() =>
+    lowStock.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      unidad: p.unidad_medida || 'unidad',
+      existencia: Number(p.existencia),
+      minimo: Number(p.existencia_minima),
+      cantidad: Math.max(1, Math.ceil(Number(p.existencia_minima) - Number(p.existencia))),
+      nota: '',
+      esPersonalizado: false,
+    }))
+  );
+
+  const [busqueda, setBusqueda] = useState('');
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaUnidad, setNuevaUnidad] = useState('unidad');
+  const [nuevaCantidad, setNuevaCantidad] = useState('1');
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [showQR, setShowQR] = useState(false);
+  const [localIp, setLocalIp] = useState(null);
+
+  // Detecta la IP local via WebRTC para generar URL accesible desde el teléfono
+  useEffect(() => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then((o) => pc.setLocalDescription(o));
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return;
+        const m = /(\d{1,3}\.){3}\d{1,3}/.exec(e.candidate.candidate);
+        if (m && !m[0].startsWith('127.') && !m[0].startsWith('169.254.')) {
+          setLocalIp(m[0]);
+          pc.close();
+        }
+      };
+    } catch {
+      // WebRTC no disponible
+    }
+  }, []);
+
+  const addedIds = new Set(items.filter((it) => it.id).map((it) => it.id));
+  const sugerencias = allProducts
+    .filter((p) => !addedIds.has(p.id) && busqueda.trim() && p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()))
+    .slice(0, 7);
+
+  function addFromInventory(p) {
+    setItems((prev) => [...prev, {
+      id: p.id,
+      nombre: p.nombre,
+      unidad: p.unidad_medida || 'unidad',
+      existencia: Number(p.existencia),
+      minimo: Number(p.existencia_minima),
+      cantidad: 1,
+      nota: '',
+      esPersonalizado: false,
+    }]);
+    setBusqueda('');
+  }
+
+  function updateItem(i, field, value) {
+    setItems((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], [field]: value };
+      return next;
+    });
+  }
+
+  function removeItem(i) {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function addCustom() {
+    if (!nuevoNombre.trim()) return;
+    setItems((prev) => [...prev, {
+      id: null,
+      nombre: nuevoNombre.trim(),
+      unidad: nuevaUnidad,
+      existencia: null,
+      minimo: null,
+      cantidad: Number(nuevaCantidad) || 1,
+      nota: '',
+      esPersonalizado: true,
+    }]);
+    setNuevoNombre('');
+    setNuevaCantidad('1');
+  }
+
+  async function abrirQR() {
+    const fecha = new Date().toLocaleDateString('es-CR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const compact = items.map((it) => ({
+      n: it.nombre,
+      c: it.cantidad,
+      u: it.unidad,
+      ...(it.nota ? { nota: it.nota } : {}),
+    }));
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+    const host = localIp ? `${localIp}:${window.location.port || 5173}` : window.location.host;
+    const url = `http://${host}/#/lista-compras?d=${encoded}&f=${encodeURIComponent(fecha)}`;
+    try {
+      const dataUrl = await QRCode.toDataURL(url, { width: 260, margin: 2, errorCorrectionLevel: 'M' });
+      setQrDataUrl(dataUrl);
+      setShowQR(true);
+    } catch (err) {
+      console.error('Error generando QR:', err);
+    }
+  }
+
+  function imprimir() {
+    const fecha = new Date().toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const filas = items.map((it) => `
+      <tr>
+        <td>${it.nombre}</td>
+        <td style="text-align:center">${it.cantidad} ${it.unidad}</td>
+        <td>${it.existencia !== null ? `${it.existencia} / ${it.minimo}` : '—'}</td>
+        <td>${it.nota || ''}</td>
+        <td style="width:80px;border:1px solid #ccc">&nbsp;</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lista de compras</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; margin: 24px; }
+    h2 { margin: 0 0 4px; }
+    .sub { color: #666; margin-bottom: 16px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f0f0f0; text-align: left; padding: 7px 10px; border-bottom: 2px solid #ccc; font-size: 11px; text-transform: uppercase; }
+    td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) td { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h2>Lista de compras</h2>
+  <div class="sub">Generada el ${fecha} &mdash; ${items.length} ítems</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Cantidad a pedir</th>
+        <th>Stock actual / mínimo</th>
+        <th>Nota</th>
+        <th>✓ Conseguido</th>
+      </tr>
+    </thead>
+    <tbody>${filas}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        style={{ width: 740, maxWidth: '96vw', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center" style={{ marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Lista de compras</h2>
+            <span className="text-muted" style={{ fontSize: 13 }}>
+              {items.length === 0 ? 'Sin ítems — agregá desde inventario o escribí uno nuevo' : `${items.length} ítem${items.length !== 1 ? 's' : ''} en la lista`}
+            </span>
+          </div>
+        </div>
+
+        {/* Agregar section */}
+        <div style={{
+          background: 'var(--color-surface-alt)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 14px',
+          marginBottom: 14,
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+            Agregar a la lista
+          </div>
+
+          {/* Buscar en inventario */}
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto del inventario..."
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            {busqueda.trim() && (
+              <div style={{
+                position: 'absolute', zIndex: 20, left: 0, right: 0,
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)', marginTop: 4, overflow: 'hidden',
+                boxShadow: 'var(--shadow-lg)',
+              }}>
+                {sugerencias.length === 0 ? (
+                  <div className="text-muted" style={{ padding: '10px 14px', fontSize: 13 }}>
+                    No se encontró en inventario. Usá el campo de abajo para agregarlo igual.
+                  </div>
+                ) : (
+                  sugerencias.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => addFromInventory(p)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        width: '100%', textAlign: 'left', padding: '9px 14px',
+                        background: 'none', border: 'none', borderBottom: '1px solid var(--color-border)',
+                        cursor: 'pointer', fontSize: 14, color: 'var(--color-text)',
+                      }}
+                    >
+                      <span>{p.nombre}</span>
+                      <span className="text-muted" style={{ fontSize: 12 }}>
+                        Stock: {p.existencia} {p.unidad_medida}
+                        {Number(p.existencia) <= Number(p.existencia_minima) && (
+                          <span className="badge badge-danger" style={{ marginLeft: 6 }}>Bajo</span>
+                        )}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Ítem personalizado */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 106px auto', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              value={nuevoNombre}
+              onChange={(e) => setNuevoNombre(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+              placeholder="O escribí un ítem nuevo (insumo, producto nuevo...)"
+            />
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={nuevaCantidad}
+              onChange={(e) => setNuevaCantidad(e.target.value)}
+              placeholder="Cant."
+              style={{ textAlign: 'center' }}
+            />
+            <select value={nuevaUnidad} onChange={(e) => setNuevaUnidad(e.target.value)}>
+              <option value="unidad">Unidad</option>
+              <option value="kg">Kg</option>
+              <option value="litro">Litro</option>
+              <option value="paquete">Paquete</option>
+              <option value="caja">Caja</option>
+            </select>
+            <button className="btn btn-sm" onClick={addCustom} disabled={!nuevoNombre.trim()}>+ Agregar</button>
+          </div>
+        </div>
+
+        {/* La lista */}
+        <div style={{ overflowY: 'auto', flex: 1, marginBottom: 14 }}>
+          {items.length === 0 ? (
+            <div className="alert alert-success">
+              Todo el inventario está sobre el stock mínimo. Usá el buscador de arriba para agregar ítems.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Producto</th>
+                  <th style={{ width: 120 }}>Cantidad</th>
+                  <th style={{ width: 100 }}>Stock</th>
+                  <th>Nota</th>
+                  <th style={{ width: 36 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it, idx) => (
+                  <tr key={idx}>
+                    <td className="text-muted" style={{ fontSize: 12, width: 32 }}>{idx + 1}</td>
+                    <td>
+                      <span>{it.nombre}</span>
+                      {it.esPersonalizado && (
+                        <span className="badge badge-accent" style={{ marginLeft: 6 }}>Extra</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="flex gap-8 items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={it.cantidad}
+                          onChange={(e) => updateItem(idx, 'cantidad', e.target.value)}
+                          style={{ width: 60, padding: '5px 8px' }}
+                        />
+                        <span className="text-muted" style={{ fontSize: 12 }}>{it.unidad}</span>
+                      </div>
+                    </td>
+                    <td className="text-muted" style={{ fontSize: 12 }}>
+                      {it.existencia !== null ? `${it.existencia} / ${it.minimo}` : '—'}
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={it.nota}
+                        onChange={(e) => updateItem(idx, 'nota', e.target.value)}
+                        placeholder="Nota..."
+                        style={{ padding: '5px 8px', fontSize: 12 }}
+                      />
+                    </td>
+                    <td>
+                      <button className="icon-btn" onClick={() => removeItem(idx)} title="Quitar">✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+          {items.length > 0 && (
+            <button className="btn btn-secondary" onClick={imprimir}>🖨️ Imprimir</button>
+          )}
+          {items.length > 0 && (
+            <button className="btn btn-secondary" onClick={abrirQR}>📱 QR teléfono</button>
+          )}
+          {items.length > 0 && (
+            <button className="btn" onClick={() => onCreateOrder(items)}>
+              🛒 Crear orden a proveedor
+            </button>
+          )}
+        </div>
+
+        {/* Sub-modal QR */}
+        {showQR && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            onClick={() => setShowQR(false)}
+          >
+            <div
+              style={{
+                background: '#fff', borderRadius: 16, padding: '28px 28px 24px',
+                maxWidth: 340, width: '90vw', textAlign: 'center',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#0f1923' }}>
+                Abrir lista en el teléfono
+              </div>
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+                {localIp
+                  ? <>Escaneá el QR con la cámara de tu teléfono.<br />El teléfono debe estar en el <strong>mismo WiFi</strong>.</>
+                  : <>Escaneá el QR desde la <strong>misma computadora</strong> o compartí el enlace.</>
+                }
+              </div>
+              {qrDataUrl && (
+                <img
+                  src={qrDataUrl}
+                  alt="QR Lista de compras"
+                  style={{ width: 220, height: 220, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                />
+              )}
+              <div style={{
+                marginTop: 14, fontSize: 11, color: '#94a3b8',
+                wordBreak: 'break-all', lineHeight: 1.5,
+              }}>
+                {localIp
+                  ? `Red: ${localIp}:${window.location.port || 5173}`
+                  : 'Detectá la IP local conectándote desde el teléfono'
+                }
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: 16, width: '100%' }}
+                onClick={() => setShowQR(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

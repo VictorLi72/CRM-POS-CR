@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.service;
+package com.crmsuper.pos.service;
 
 import com.crmsuper.pos.dto.turno.TurnoAbrirRequest;
 import com.crmsuper.pos.dto.turno.TurnoCerrarRequest;

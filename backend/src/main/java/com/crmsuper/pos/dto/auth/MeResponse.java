@@ -1,4 +1,4 @@
-﻿package com.crmsuper.pos.dto.auth;
+package com.crmsuper.pos.dto.auth;
 
 public class MeResponse {
     private final UserInfo user;
