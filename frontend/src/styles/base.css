@@ -9,13 +9,13 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 button, input, select, textarea {
   font-family: inherit;
@@ -30,10 +30,19 @@ a {
 
 a:hover { color: var(--color-primary); }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: #d1d9e0;
   border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-text-light); }
+::-webkit-scrollbar-thumb:hover { background: #b0bcc8; }
+
+/* Respeto a prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

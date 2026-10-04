@@ -15,6 +15,7 @@ import Settings from './pages/Settings.jsx';
 import Orders from './pages/Orders.jsx';
 import PurchaseOrders from './pages/PurchaseOrders.jsx';
 import ListaCompras from './pages/ListaCompras.jsx';
+import MobileAccess from './pages/MobileAccess.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 export default function App() {
@@ -131,6 +132,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={['administrador', 'supervisor']}>
             <PurchaseOrders />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/mobile-access"
+        element={
+          <ProtectedRoute roles={['administrador', 'supervisor']}>
+            <MobileAccess />
           </ProtectedRoute>
         }
       />

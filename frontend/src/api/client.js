@@ -6,7 +6,13 @@ const PRINTER_KEY = 'crm_printer_name';
 const AUTO_PRINT_KEY = 'crm_auto_print';
 
 export function getServerUrl() {
-  return localStorage.getItem(SERVER_URL_KEY) || 'http://localhost:4000';
+  const stored = localStorage.getItem(SERVER_URL_KEY);
+  if (stored) return stored;
+  // En el navegador (no Electron), usa el mismo origen para que el proxy de Vite enrute las llamadas al backend
+  if (typeof window !== 'undefined' && window.location.protocol !== 'file:') {
+    return window.location.origin;
+  }
+  return 'http://localhost:4000';
 }
 
 export function setServerUrl(url) {
@@ -61,6 +67,55 @@ export function getReceiptHeader() {
 
 export function setReceiptHeader(data) {
   localStorage.setItem(RECEIPT_HEADER_KEY, JSON.stringify(data));
+}
+
+const DATAFONO_KEY = 'crm_datafono';
+const DEFAULT_DATAFONO = {
+  tipo: 'none',   // 'none' | 'serial' | 'network'
+  marca: '',
+  puerto_com: 'COM1',
+  ip: '',
+  puerto_red: '8080',
+};
+
+export function getDatafono() {
+  try {
+    const stored = localStorage.getItem(DATAFONO_KEY);
+    return stored ? { ...DEFAULT_DATAFONO, ...JSON.parse(stored) } : { ...DEFAULT_DATAFONO };
+  } catch {
+    return { ...DEFAULT_DATAFONO };
+  }
+}
+
+export function setDatafono(data) {
+  localStorage.setItem(DATAFONO_KEY, JSON.stringify(data));
+}
+
+const RECEIPT_OPTIONS_KEY = 'crm_receipt_options';
+const DEFAULT_RECEIPT_OPTIONS = {
+  mostrarIva: true,
+  mostrarSubtotal: true,
+  mostrarTotalItems: true,
+  mostrarCodigo: true,
+  mensajeCodigo: 'Escaneá este código en Devoluciones',
+  mostrarCajero: true,
+  mostrarFolio: true,
+  escalaCodigo: 2,
+  margenCodigo: 10,
+  margenTiquete: 5,
+};
+
+export function getReceiptOptions() {
+  try {
+    const stored = localStorage.getItem(RECEIPT_OPTIONS_KEY);
+    return stored ? { ...DEFAULT_RECEIPT_OPTIONS, ...JSON.parse(stored) } : { ...DEFAULT_RECEIPT_OPTIONS };
+  } catch {
+    return { ...DEFAULT_RECEIPT_OPTIONS };
+  }
+}
+
+export function setReceiptOptions(data) {
+  localStorage.setItem(RECEIPT_OPTIONS_KEY, JSON.stringify(data));
 }
 
 const api = axios.create();

@@ -14,6 +14,7 @@ export default function CashRegister() {
   const [notas, setNotas] = useState('');
   const [error, setError] = useState('');
   const [cerrado, setCerrado] = useState(null);
+  const [cierreLoading, setCierreLoading] = useState(false);
   const [historial, setHistorial] = useState([]);
   const puedeVerHistorial = ['administrador', 'supervisor'].includes(user?.rol);
 
@@ -41,15 +42,39 @@ export default function CashRegister() {
     }
   }
 
-  async function abrirTurno() {
+  async function soloAbrirTurno() {
     setError('');
     try {
-      const res = await api.post('/turnos', { monto_apertura: Number(montoApertura) || 0 });
-      setTurno(res.data);
+      await api.post('/turnos', { monto_apertura: Number(montoApertura) || 0 });
       setMontoApertura('');
-      loadTurnoActual();
+      await loadTurnoActual();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo abrir el turno');
+    }
+  }
+
+  async function registrarCierre() {
+    if (efectivoContado === '') {
+      setError('Ingresá el efectivo contado en caja');
+      return;
+    }
+    setError('');
+    setCierreLoading(true);
+    try {
+      const abierto = await api.post('/turnos', { monto_apertura: Number(montoApertura) || 0 });
+      const res = await api.post(`/turnos/${abierto.data.id}/cerrar`, {
+        efectivo_contado: Number(efectivoContado),
+        notas,
+      });
+      setCerrado(res.data);
+      setMontoApertura('');
+      setEfectivoContado('');
+      setNotas('');
+      if (puedeVerHistorial) loadHistorial();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo registrar el cierre');
+    } finally {
+      setCierreLoading(false);
     }
   }
 
@@ -102,11 +127,10 @@ export default function CashRegister() {
       )}
 
       {!turno && !cerrado && (
-        <div className="card" style={{ maxWidth: 420 }}>
-          <h3 className="mt-0">Abrir turno</h3>
-          <p className="text-muted">Contá el efectivo con el que arrancás la caja antes de empezar a vender.</p>
+        <div className="card" style={{ maxWidth: 440 }}>
+          <h3 className="mt-0">Registrar cierre de turno</h3>
           <div className="form-group">
-            <label>Monto inicial en caja</label>
+            <label>Con cuánto abrió la caja (opcional)</label>
             <input
               type="number"
               value={montoApertura}
@@ -115,7 +139,31 @@ export default function CashRegister() {
               autoFocus
             />
           </div>
-          <button className="btn" onClick={abrirTurno}>Abrir turno</button>
+          <div className="form-group">
+            <label>Efectivo contado en caja</label>
+            <input
+              type="number"
+              value={efectivoContado}
+              onChange={(e) => setEfectivoContado(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="form-group">
+            <label>Notas (opcional)</label>
+            <input
+              type="text"
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 4 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={registrarCierre} disabled={cierreLoading}>
+              {cierreLoading ? 'Registrando...' : 'Registrar cierre'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={soloAbrirTurno} title="Abrir turno sin cerrar ahora">
+              Solo abrir
+            </button>
+          </div>
         </div>
       )}
 
@@ -125,18 +173,18 @@ export default function CashRegister() {
             <h3 className="mt-0">Turno abierto</h3>
             <p className="text-muted">Desde {formatDate(turno.abierto_en)}</p>
             <div className="flex justify-between"><span className="text-muted">Monto de apertura</span><span>{formatCurrency(turno.monto_apertura)}</span></div>
-            <div className="flex justify-between"><span className="text-muted">Ventas en efectivo</span><span>{formatCurrency(turno.resumen.ventas_efectivo)} ({turno.resumen.ventas_efectivo_cantidad})</span></div>
-            <div className="flex justify-between"><span className="text-muted">Abonos de fiado</span><span>{formatCurrency(turno.resumen.abonos_fiado)}</span></div>
-            <div className="flex justify-between"><span className="text-muted">Devoluciones en efectivo</span><span>-{formatCurrency(turno.resumen.devoluciones_efectivo)}</span></div>
+            <div className="flex justify-between"><span className="text-muted">Ventas en efectivo</span><span>{formatCurrency(turno.resumen?.ventas_efectivo)} ({turno.resumen?.ventas_efectivo_cantidad ?? 0})</span></div>
+            <div className="flex justify-between"><span className="text-muted">Abonos de fiado</span><span>{formatCurrency(turno.resumen?.abonos_fiado)}</span></div>
+            <div className="flex justify-between"><span className="text-muted">Devoluciones en efectivo</span><span>-{formatCurrency(turno.resumen?.devoluciones_efectivo)}</span></div>
             <div className="flex justify-between" style={{ fontWeight: 700, marginTop: 6 }}>
               <span>Efectivo esperado ahora</span>
               <span>
                 {formatCurrency(
-                  turno.monto_apertura + turno.resumen.ventas_efectivo + turno.resumen.abonos_fiado - turno.resumen.devoluciones_efectivo
+                  (turno.monto_apertura || 0) + (turno.resumen?.ventas_efectivo || 0) + (turno.resumen?.abonos_fiado || 0) - (turno.resumen?.devoluciones_efectivo || 0)
                 )}
               </span>
             </div>
-            {turno.resumen.ventas_por_metodo.length > 0 && (
+            {turno.resumen?.ventas_por_metodo?.length > 0 && (
               <>
                 <h4>Ventas por método</h4>
                 <table>

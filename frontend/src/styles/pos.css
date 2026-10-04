@@ -22,6 +22,19 @@
   min-height: 0;
 }
 
+/* ── Móvil: layout vertical sin height fijo ── */
+@media (max-width: 860px) {
+  .pos-layout {
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+  .pos-side-panel { position: static; }
+  .pos-main-col { min-height: auto; }
+  .pos-products-card { flex: 0 0 auto; max-height: 360px; }
+  .pos-products-card .product-grid { max-height: 280px; overflow-y: auto; }
+}
+
 .pos-products-card {
   flex: 1;
   display: flex;
@@ -165,15 +178,16 @@
   padding: 12px 8px;
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-text);
   font-weight: 600;
   font-size: 13px;
   text-align: center;
   cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
 }
 
-.payment-option:hover { background: #f0f2f5; }
+.payment-option:hover { background: var(--color-surface-alt); }
 
 .payment-option.active {
   background: var(--color-primary-light);
@@ -188,13 +202,13 @@
   font-size: 9px;
   font-weight: 700;
   color: var(--color-text-muted);
-  background: #eef0f3;
+  background: var(--color-surface-alt);
   border-radius: 4px;
   padding: 1px 4px;
 }
 
 .payment-option.active .payment-option-key {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 

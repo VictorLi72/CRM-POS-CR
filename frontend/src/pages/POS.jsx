@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import api, { getPrinterName, getAutoPrint } from '../api/client';
+import api, { getPrinterName, getAutoPrint, getReceiptHeader } from '../api/client';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext.jsx';
-import { buildReceiptHtml, buildFolioCode } from '../utils/receiptHtml';
+import { buildReceiptHtml, buildFolioCode, descargarRecibo, elegirImpresion } from '../utils/receiptHtml';
 import QRCode from 'qrcode';
+import { BarcodeScanButton } from '../components/BarcodeScanner.jsx';
 
 const REDONDEAR = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const DEBOUNCE_BUSQUEDA_MS = 150;
@@ -268,6 +269,17 @@ export default function POS() {
     }, DEBOUNCE_BUSQUEDA_MS);
   }
 
+  async function handleCameraBarcode(code) {
+    setScanValue(code);
+    setScanError('');
+    try {
+      const res = await api.get(`/products/barcode/${encodeURIComponent(code.trim())}`);
+      addProductToCart(res.data);
+    } catch {
+      handleScanChange({ target: { value: code } });
+    }
+  }
+
   function handleScanBlur() {
     // Si el foco se fue a un lugar "de nada" (se hizo clic en el fondo, una celda,
     // etc.) lo devolvemos al campo de escaneo para que el cajero pueda seguir
@@ -461,20 +473,48 @@ export default function POS() {
     <Layout title="Punto de Venta" topbarExtra={topbarCliente}>
       <div className="pos-layout">
         <div className="pos-main-col">
+
+          {/* Cliente: visible solo en móvil (en desktop va en el topbar) */}
+          <div className="pos-cliente-mobile">
+            <div className="pos-cliente-mobile-inner">
+              <span style={{ fontSize: 15 }}>👤</span>
+              <input
+                type="text"
+                placeholder="Buscar cliente..."
+                value={customerSearch}
+                onChange={(e) => { setCustomerSearch(e.target.value); loadCustomers(e.target.value); }}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                <option value="">Sin cliente</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="card">
             <form onSubmit={handleScanSubmit} style={{ position: 'relative' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Escanear código de barras o buscar producto</label>
-                <input
-                  ref={scanInputRef}
-                  type="text"
-                  value={scanValue}
-                  onChange={handleScanChange}
-                  onBlur={handleScanBlur}
-                  placeholder="Escanee con el lector o escriba el nombre..."
-                  autoComplete="off"
-                  style={{ fontSize: 16, padding: '12px 14px' }}
-                />
+                <div className="input-scan-wrapper">
+                  <input
+                    ref={scanInputRef}
+                    type="text"
+                    value={scanValue}
+                    onChange={handleScanChange}
+                    onBlur={handleScanBlur}
+                    placeholder="Escanee con el lector o escriba el nombre..."
+                    autoComplete="off"
+                    style={{ fontSize: 16, padding: '12px 14px' }}
+                  />
+                  <BarcodeScanButton onScan={handleCameraBarcode} />
+                </div>
               </div>
               {suggestions.length > 0 && (
                 <div
@@ -764,103 +804,146 @@ export default function POS() {
   );
 }
 
+const METODO_LABELS_RECEIPT = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', sinpe: 'SINPE Móvil', fiado: 'Fiado', mixto: 'Mixto' };
+
 function Receipt({ sale, cashier, onNewSale }) {
   const [imprimiendo, setImprimiendo] = useState(false);
   const [errorImpresion, setErrorImpresion] = useState('');
-  const [qrDataUrl, setQrDataUrl] = useState('');
-  const folioCode = buildFolioCode(sale.folio, sale.creado_en);
-  const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
-  const autoPrinted = useRef(false);
-
-  useEffect(() => {
-    QRCode.toDataURL(folioCode, { width: 140, margin: 1 })
-      .then(setQrDataUrl)
-      .catch(() => {});
-  }, [folioCode]);
+  const imprimirRef = useRef(null);
+  const hdr = getReceiptHeader();
+  const fechaD = new Date((sale.creado_en || new Date().toISOString()).replace(' ', 'T'));
+  const fechaStr = fechaD.toLocaleDateString('es-CR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = fechaD.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+  const totalUnidades = sale.items.reduce((s, it) => s + it.cantidad, 0);
 
   async function imprimir() {
     setErrorImpresion('');
     setImprimiendo(true);
     try {
-      const html = await buildReceiptHtml(sale, cashier);
-      await window.electronAPI.imprimirTiquete(html, getPrinterName());
-    } catch (err) {
-      setErrorImpresion('No se pudo imprimir. Revisá la impresora en Configuración.');
+      const html = buildReceiptHtml(sale, cashier);
+      if (window.electronAPI) {
+        try {
+          await window.electronAPI.imprimirTiquete(html, getPrinterName());
+        } catch {
+          descargarRecibo(html, sale.folio);
+        }
+      } else {
+        const choice = await elegirImpresion(html, sale.folio);
+        if (choice === 'print') {
+          const win = window.open('', '_blank', 'width=420,height=650');
+          if (!win) {
+            descargarRecibo(html, sale.folio);
+          } else {
+            win.document.write(html);
+            win.document.close();
+            setTimeout(() => win.print(), 400);
+          }
+        } else if (choice === 'download') {
+          descargarRecibo(html, sale.folio);
+        }
+      }
+    } catch {
+      setErrorImpresion('No se pudo procesar el tiquete.');
     } finally {
       setImprimiendo(false);
     }
   }
 
+  useEffect(() => { imprimirRef.current = imprimir; });
+
   useEffect(() => {
-    if (autoPrinted.current) return;
-    if (tieneAPIImpresion && getAutoPrint()) {
-      autoPrinted.current = true;
-      imprimir();
+    function handleKey(e) {
+      if (e.key === 'Enter') { e.preventDefault(); imprimirRef.current?.(); }
+      if (e.key === 'Escape') { e.preventDefault(); onNewSale(); }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onNewSale]);
 
   return (
-    <div className="card" style={{ maxWidth: 420, margin: '0 auto' }}>
-      <div className="text-center">
-        <h2>Venta registrada</h2>
-        <p className="text-muted">Tiquete #{sale.folio}</p>
-        {qrDataUrl && (
-          <div style={{ margin: '10px 0 4px' }}>
-            <img src={qrDataUrl} alt={`QR ${folioCode}`} style={{ width: 120, height: 120, borderRadius: 8, border: '1px solid #e2e5ea' }} />
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '1.5px', color: '#2d3748', marginTop: 4 }}>{folioCode}</div>
-            <div style={{ fontSize: 11, color: '#6b7686', marginTop: 2 }}>
-              Escaneá para buscar esta compra en Devoluciones
+    <div style={{ maxWidth: 420, margin: '0 auto', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+
+      {/* Cabecera */}
+      <div style={{ padding: '20px 20px 14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-text)' }}>{hdr.nombre}</div>
+            {hdr.telefono && <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{hdr.telefono}</div>}
+            {hdr.direccion && <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{hdr.direccion}</div>}
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>Tiquete #{sale.folio}</div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Cajero: {cashier}</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--color-text-muted)' }}>
+          {sale.items.length} {sale.items.length === 1 ? 'artículo' : 'artículos'} · Cant. total: {totalUnidades}
+        </div>
+      </div>
+
+      <div style={{ borderTop: '2px solid var(--color-text)', margin: '0 20px' }} />
+
+      {/* Ítems */}
+      <div style={{ padding: '4px 20px' }}>
+        {sale.items.map((it) => (
+          <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', flexShrink: 0 }}>{it.cantidad}x</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.producto_nombre}</div>
+                {it.descuento > 0 && <div style={{ fontSize: 11, color: 'var(--color-danger)' }}>desc. {formatCurrency(it.descuento)}</div>}
+              </div>
             </div>
+            <div style={{ fontSize: 14, fontWeight: 600, flexShrink: 0, marginLeft: 12 }}>{formatCurrency(it.total)}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Totales */}
+      <div style={{ padding: '12px 20px 4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 4 }}>
+          <span>Subtotal:</span><span>{formatCurrency(sale.subtotal)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 19, fontWeight: 700, marginBottom: 6 }}>
+          <span>Total:</span><span>{formatCurrency(sale.total)}</span>
+        </div>
+        {sale.metodo_pago === 'mixto' && sale.pagos ? sale.pagos.map((p, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 13, color: 'var(--color-text-muted)' }}>
+            <span>{METODO_LABELS_RECEIPT[p.metodo] || p.metodo}:</span><span>{formatCurrency(p.monto)}</span>
+          </div>
+        )) : (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 13, color: 'var(--color-text-muted)' }}>
+            <span>{METODO_LABELS_RECEIPT[sale.metodo_pago] || sale.metodo_pago}:</span><span>{formatCurrency(sale.total)}</span>
+          </div>
+        )}
+        {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 13, color: 'var(--color-text-muted)' }}>
+            <span>Vuelto:</span><span>{formatCurrency(sale.vuelto)}</span>
           </div>
         )}
       </div>
-      <table>
-        <tbody>
-          {sale.items.map((it) => (
-            <tr key={it.id}>
-              <td>
-                {it.producto_nombre}
-                <div className="text-muted">
-                  {it.cantidad} x {formatCurrency(it.precio_unitario)}
-                  {it.descuento > 0 && <> · desc. {formatCurrency(it.descuento)}</>}
-                </div>
-              </td>
-              <td className="text-right">{formatCurrency(it.total)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div style={{ marginTop: 12 }}>
-        <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>{formatCurrency(sale.subtotal)}</span></div>
-        <div className="flex justify-between"><span className="text-muted">IVA</span><span>{formatCurrency(sale.iva_total)}</span></div>
-        <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 18 }}>
-          <span>Total</span><span>{formatCurrency(sale.total)}</span>
-        </div>
-        {sale.metodo_pago === 'mixto' && sale.pagos ? (
-          sale.pagos.map((p, i) => (
-            <div key={i} className="flex justify-between">
-              <span className="text-muted">{p.metodo === 'efectivo' ? '💵 Efectivo' : p.metodo === 'tarjeta' ? '💳 Tarjeta' : '📱 SINPE'}</span>
-              <span>{formatCurrency(p.monto)}</span>
-            </div>
-          ))
-        ) : (
-          <div className="flex justify-between"><span className="text-muted">Pago</span><span>{sale.metodo_pago}</span></div>
-        )}
-        {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
-          <div className="flex justify-between"><span className="text-muted">Vuelto</span><span>{formatCurrency(sale.vuelto)}</span></div>
-        )}
-        <div className="flex justify-between"><span className="text-muted">Cajero</span><span>{cashier}</span></div>
+
+      {/* Pie */}
+      <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--color-border)', marginTop: 8, textAlign: 'center' }}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{hdr.leyenda || '¡Gracias por su compra!'}</div>
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>{fechaStr} · {horaStr}</div>
       </div>
-      {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}
-      {tieneAPIImpresion && (
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 20 }} onClick={imprimir} disabled={imprimiendo}>
-          {imprimiendo ? 'Imprimiendo...' : '🖨️ Imprimir tiquete'}
+
+      {errorImpresion && <div className="alert alert-danger" style={{ margin: '0 20px 12px' }}>{errorImpresion}</div>}
+
+      {/* Acciones */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--color-border)' }}>
+        <button onClick={imprimir} disabled={imprimiendo} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '14px 8px', border: 'none', borderRight: '1px solid var(--color-border)', background: 'var(--color-surface-alt)', cursor: 'pointer', color: 'var(--color-text)' }}>
+          <span style={{ fontSize: 22 }}>🖨️</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{imprimiendo ? 'Imprimiendo...' : 'Imprimir'}</span>
+          <kbd style={{ fontSize: 10, opacity: 0.5, background: 'rgba(0,0,0,0.08)', borderRadius: 3, padding: '1px 5px', fontFamily: 'monospace' }}>Enter</kbd>
         </button>
-      )}
-      <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={onNewSale}>
-        Nueva venta
-      </button>
+        <button onClick={onNewSale} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '14px 8px', border: 'none', background: 'var(--color-primary)', cursor: 'pointer', color: '#fff' }}>
+          <span style={{ fontSize: 22 }}>✚</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Nueva venta</span>
+          <kbd style={{ fontSize: 10, opacity: 0.6, background: 'rgba(255,255,255,0.2)', borderRadius: 3, padding: '1px 5px', fontFamily: 'monospace', color: '#fff' }}>Esc</kbd>
+        </button>
+      </div>
     </div>
   );
 }

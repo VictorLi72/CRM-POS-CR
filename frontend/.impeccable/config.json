@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-10-04T11:06:56.307Z",
+        "reason": "print HTML template — Arial for universal printer compatibility, confirmed previous session"
+      }
+    ]
+  }
+}
