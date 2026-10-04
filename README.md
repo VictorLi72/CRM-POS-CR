@@ -7,21 +7,41 @@
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)
 ![Licencia](https://img.shields.io/badge/uso-privado-lightgrey)
 
-## ⬇️ Descarga rápida (instalar en otra caja)
+## ⬇️ Descarga rápida
 
-> Solo para instalar la **app de caja** en una PC adicional.
-> El servidor central (backend + MySQL) sigue corriendo en la PC principal.
+**[→ Descargar CRM-Super-CR.rar (Releases)](https://github.com/VictorLi72/CRM-POS-CR/releases/latest)**
 
-**[→ Descargar última versión (Releases)](https://github.com/VictorLi72/CRM-POS-CR/releases/latest)**
+El RAR incluye todo. Extraelo y seguí según lo que necesitás:
 
-1. Descargá el archivo `CRM-Super-CR-Caja.rar`
-2. Extraelo y ejecutá el instalador `.exe` que está adentro
-3. Al abrir la app, tocá **"Cambiar dirección del servidor"** en el login
-4. Poné la IP de la PC principal, por ejemplo: `http://192.168.1.10:4000`
-5. Iniciá sesión con tu usuario y contraseña
+### PC Servidor (la que tiene MySQL — una sola vez)
 
-> **¿Cómo saber la IP de la PC principal?**
-> Abrí PowerShell y escribí `ipconfig` — buscá "Dirección IPv4" en la sección de tu red.
+> Requisitos: [Java 17+](https://adoptium.net/) y [MySQL 8](https://dev.mysql.com/downloads/mysql/) instalados.
+
+1. Abrí MySQL y creá la base de datos:
+   ```sql
+   CREATE DATABASE IF NOT EXISTS crm_super_pos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER IF NOT EXISTS 'crm_super'@'%' IDENTIFIED BY 'TU-CONTRASENA';
+   GRANT ALL PRIVILEGES ON crm_super_pos.* TO 'crm_super'@'%';
+   FLUSH PRIVILEGES;
+   ```
+2. Abrí el archivo `servidor/iniciar-servidor.bat` con el Bloc de notas y cambiá `DB_PASS` y `JWT_SECRET`
+3. Guardá y **doble clic** en `iniciar-servidor.bat` — el servidor arranca en el puerto 4000
+4. Anotá la IP de esta PC (`ipconfig` → "Dirección IPv4"), la van a necesitar las cajas
+
+### PC Caja (cada caja del negocio)
+
+> No necesita Java, Node.js ni nada — solo Windows.
+
+1. Doble clic en `caja/CRM-Super-CR Setup.exe` → se instala
+2. Abrí la app → tocá **"Cambiar dirección del servidor"** → poné `http://192.168.X.X:4000`
+3. Iniciá sesión — ¡listo!
+
+| Usuario  | Contraseña | Rol   |
+|----------|-----------|-------|
+| admin    | admin123  | Administrador |
+| cajero1  | cajero123 | Cajero |
+
+**Cambiá estas contraseñas desde Usuarios apenas entrés por primera vez.**
 
 ---
 
