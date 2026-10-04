@@ -2,40 +2,185 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client';
+import { getA11y, setA11y } from '../utils/a11y.js';
+import {
+  IconHome, IconPOS, IconPackage, IconUsers, IconClipboard,
+  IconCart, IconRotateCCW, IconClock, IconWallet, IconBarChart,
+  IconTag, IconPercent, IconKey, IconSettings, IconBell, IconLogOut,
+  IconSmartphone, IconMenu, IconX, IconA11y,
+} from './Icons.jsx';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Inicio', icon: '🏠', roles: ['administrador', 'supervisor', 'cajero'], end: true },
-  { to: '/pos', label: 'Punto de Venta', icon: '🧾', roles: ['administrador', 'supervisor', 'cajero'] },
-  { to: '/inventory', label: 'Inventario', icon: '📦', roles: ['administrador', 'supervisor'] },
-  { to: '/customers', label: 'Clientes', icon: '👥', roles: ['administrador', 'supervisor', 'cajero'] },
-  { to: '/orders', label: 'Pedidos', icon: '📋', roles: ['administrador', 'supervisor', 'cajero'] },
-  { to: '/purchase-orders', label: 'Órdenes de compra', icon: '🛒', roles: ['administrador', 'supervisor'] },
-  { to: '/returns', label: 'Devoluciones', icon: '↩️', roles: ['administrador', 'supervisor'] },
-  { to: '/sales-history', label: 'Historial de ventas', icon: '📜', roles: ['administrador', 'supervisor'] },
-  { to: '/cash-register', label: 'Cierre de caja', icon: '🗄️', roles: ['administrador', 'supervisor', 'cajero'] },
-  { to: '/reports', label: 'Reportes', icon: '📊', roles: ['administrador', 'supervisor'] },
-  { to: '/promotions', label: 'Promociones', icon: '🏷️', roles: ['administrador', 'supervisor'] },
-  { to: '/tax-discounts', label: 'IVA y Descuentos', icon: '💲', roles: ['administrador'] },
-  { to: '/users', label: 'Usuarios', icon: '🔑', roles: ['administrador'] },
-  { to: '/settings', label: 'Configuración', icon: '⚙️', roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/', label: 'Inicio',            Icon: IconHome,      roles: ['administrador', 'supervisor', 'cajero'], end: true },
+  { to: '/pos', label: 'Punto de Venta', Icon: IconPOS,       roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/inventory', label: 'Inventario', Icon: IconPackage,  roles: ['administrador', 'supervisor'] },
+  { to: '/customers', label: 'Clientes',   Icon: IconUsers,    roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/orders', label: 'Pedidos',       Icon: IconClipboard,roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/purchase-orders', label: 'Órdenes de compra', Icon: IconCart, roles: ['administrador', 'supervisor'] },
+  { to: '/returns', label: 'Devoluciones', Icon: IconRotateCCW,roles: ['administrador', 'supervisor'] },
+  { to: '/sales-history', label: 'Historial de ventas', Icon: IconClock, roles: ['administrador', 'supervisor'] },
+  { to: '/cash-register', label: 'Cierre de caja', Icon: IconWallet, roles: ['administrador', 'supervisor', 'cajero'] },
+  { to: '/reports', label: 'Reportes',    Icon: IconBarChart,  roles: ['administrador', 'supervisor'] },
+  { to: '/promotions', label: 'Promociones', Icon: IconTag,    roles: ['administrador', 'supervisor'] },
+  { to: '/tax-discounts', label: 'IVA y Descuentos', Icon: IconPercent, roles: ['administrador'] },
+  { to: '/users', label: 'Usuarios',      Icon: IconKey,       roles: ['administrador'] },
+  { to: '/mobile-access', label: 'Acceso móvil', Icon: IconSmartphone, roles: ['administrador', 'supervisor'] },
+  { to: '/settings', label: 'Configuración', Icon: IconSettings, roles: ['administrador', 'supervisor', 'cajero'] },
 ];
 
 const ROLE_LABELS = { administrador: 'Administrador', supervisor: 'Supervisor', cajero: 'Cajero' };
 
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <div
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 36, height: 20, borderRadius: 10, flexShrink: 0, cursor: 'pointer',
+        background: checked ? 'var(--color-primary)' : 'var(--color-border)',
+        position: 'relative', transition: 'background var(--transition)',
+      }}
+    >
+      <div style={{
+        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+        position: 'absolute', top: 3, left: checked ? 19 : 3,
+        transition: 'left var(--transition)',
+        boxShadow: '0 1px 3px rgba(0,0,0,.18)',
+      }} />
+    </div>
+  );
+}
+
+function AccessibilityButton() {
+  const [open, setOpen] = useState(false);
+  const [prefs, setPrefs] = useState(getA11y);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function set(key, value) {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    setA11y(next);
+  }
+
+  const TEMAS = [
+    { val: 'light', label: '☀ Claro' },
+    { val: 'system', label: '⊙ Auto' },
+    { val: 'dark', label: '☾ Oscuro' },
+  ];
+  const FUENTES = [
+    { val: 'sm', size: 10 },
+    { val: 'md', size: 13 },
+    { val: 'lg', size: 16 },
+    { val: 'xl', size: 19 },
+  ];
+
+  return (
+    <div className="notif-bell-wrapper" ref={wrapperRef}>
+      <button
+        type="button"
+        className="notif-bell"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Accesibilidad"
+        title="Accesibilidad"
+      >
+        <IconA11y size={16} />
+      </button>
+      {open && (
+        <div className="notif-dropdown" style={{ width: 232, padding: '12px 14px' }}>
+          <div className="notif-dropdown-header">Accesibilidad</div>
+
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 6 }}>Tema</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {TEMAS.map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => set('tema', val)}
+                  style={{
+                    flex: 1, padding: '5px 2px', fontSize: 11,
+                    border: '1.5px solid',
+                    borderColor: prefs.tema === val ? 'var(--color-primary)' : 'var(--color-border)',
+                    borderRadius: 6,
+                    background: prefs.tema === val ? 'var(--color-primary-light)' : 'transparent',
+                    color: prefs.tema === val ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    cursor: 'pointer', fontWeight: prefs.tema === val ? 600 : 400,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 6 }}>Tamaño de texto</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {FUENTES.map(({ val, size }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => set('fuente', val)}
+                  style={{
+                    flex: 1, padding: '6px 0', fontSize: size, fontWeight: 700, lineHeight: 1,
+                    border: '1.5px solid',
+                    borderColor: prefs.fuente === val ? 'var(--color-primary)' : 'var(--color-border)',
+                    borderRadius: 6,
+                    background: prefs.fuente === val ? 'var(--color-primary-light)' : 'transparent',
+                    color: prefs.fuente === val ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  A
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Alto contraste</span>
+              <ToggleSwitch checked={prefs.contraste} onChange={(v) => set('contraste', v)} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Animaciones</span>
+              <ToggleSwitch checked={prefs.movimiento} onChange={(v) => set('movimiento', v)} />
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ title, topbarExtra, children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function handleLogout() {
     logout();
     navigate('/login');
   }
 
+  function closeMenu() { setMenuOpen(false); }
+
   const items = NAV_ITEMS.filter((item) => item.roles.includes(user?.rol));
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {menuOpen && <div className="sidebar-overlay" onClick={closeMenu} />}
+
+      <aside className={`sidebar${menuOpen ? ' sidebar--open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-brand-name">CRM Super CR</div>
           <span className="sidebar-brand-subtitle">Punto de Venta &amp; Gestión</span>
@@ -48,8 +193,11 @@ export default function Layout({ title, topbarExtra, children }) {
               end={item.end}
               className={({ isActive }) => 'sidebar-link' + (isActive ? ' active' : '')}
               title={item.label}
+              onClick={closeMenu}
             >
-              <span className="sidebar-link-icon">{item.icon}</span>
+              <span className="sidebar-link-icon">
+                <item.Icon size={16} />
+              </span>
               <span className="sidebar-link-label">{item.label}</span>
             </NavLink>
           ))}
@@ -61,15 +209,24 @@ export default function Layout({ title, topbarExtra, children }) {
           </div>
           <button className="logout-btn" onClick={handleLogout} title="Cerrar sesión">
             <span className="logout-btn-label">Cerrar sesión</span>
-            <span className="logout-btn-icon">⏻</span>
+            <span className="logout-btn-icon"><IconLogOut size={15} /></span>
           </button>
         </div>
       </aside>
+
       <div className="main-area">
         <div className="topbar">
-          <h1>{title}</h1>
-          {topbarExtra}
-          {(user?.rol === 'administrador' || user?.rol === 'supervisor') && <LowStockBell />}
+          <div className="topbar-left">
+            <button className="menu-toggle" onClick={() => setMenuOpen((v) => !v)} aria-label="Menú">
+              {menuOpen ? <IconX size={20} /> : <IconMenu size={20} />}
+            </button>
+            <h1>{title}</h1>
+          </div>
+          <div className="topbar-right">
+            {topbarExtra}
+            <AccessibilityButton />
+            {(user?.rol === 'administrador' || user?.rol === 'supervisor') && <LowStockBell />}
+          </div>
         </div>
         <div className="content">{children}</div>
       </div>
@@ -103,8 +260,8 @@ function LowStockBell() {
     try {
       const res = await api.get('/products', { params: { lowStock: true } });
       setProducts(res.data);
-    } catch (err) {
-      // silencioso: la campana es informativa, no bloquea el resto de la app
+    } catch {
+      // silencioso: la campana es informativa
     }
   }
 
@@ -121,9 +278,9 @@ function LowStockBell() {
         type="button"
         className="notif-bell"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Notificaciones de stock bajo"
+        aria-label={`Notificaciones de stock bajo${count > 0 ? ` (${count})` : ''}`}
       >
-        🔔
+        <IconBell size={16} />
         {count > 0 && <span className="notif-badge">{count > 99 ? '99+' : count}</span>}
       </button>
       {open && (

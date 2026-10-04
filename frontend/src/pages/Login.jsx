@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getServerUrl, setServerUrl } from '../api/client';
+import { applyA11y } from '../utils/a11y.js';
 
 const SAVED_USERS_KEY = 'crm_saved_users';
 
@@ -27,6 +28,12 @@ const AVATAR_COLORS = ['#1e6f5c', '#2563eb', '#7c3aed', '#b45309', '#0369a1'];
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // La pantalla de login siempre se muestra en modo claro.
+  useLayoutEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    return () => applyA11y(); // restaura las preferencias reales al salir
+  }, []);
   const savedUsers = getSavedUsers();
 
   const [selectedUser, setSelectedUser] = useState(savedUsers[0] || '');

@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import Layout from '../components/Layout.jsx';
 import api from '../api/client';
 import { formatCurrency } from '../utils/format';
+import { BarcodeScanButton } from '../components/BarcodeScanner.jsx';
 
 const EMPTY_PRODUCT = {
   id: null,
@@ -118,13 +119,16 @@ export default function Inventory() {
     <Layout title="Inventario">
       {error && <div className="alert alert-danger">{error}</div>}
       <div className="toolbar">
-        <input
-          className="toolbar-search"
-          type="search"
-          placeholder="Buscar por nombre o código de barras..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="input-scan-wrapper toolbar-search">
+          <input
+            type="search"
+            placeholder="Buscar por nombre o código de barras..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%' }}
+          />
+          <BarcodeScanButton onScan={(val) => setSearch(val)} />
+        </div>
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ maxWidth: 200 }}>
           <option value="">Todas las categorías</option>
           {categories.map((c) => (
@@ -354,13 +358,16 @@ function ProductModal({ product, categories, ivaRates, onClose, onSave }) {
         <h2>{form.id ? 'Editar producto' : 'Nuevo producto'}</h2>
         <div className="form-group">
           <label>Código de barras</label>
-          <input
-            type="text"
-            value={form.codigo_barras || ''}
-            onChange={(e) => set('codigo_barras', e.target.value)}
-            autoFocus
-            placeholder="Escaneá o escribí el código..."
-          />
+          <div className="input-scan-wrapper">
+            <input
+              type="text"
+              value={form.codigo_barras || ''}
+              onChange={(e) => set('codigo_barras', e.target.value)}
+              autoFocus
+              placeholder="Escaneá o escribí el código..."
+            />
+            <BarcodeScanButton onScan={(val) => set('codigo_barras', val)} />
+          </div>
           {checkingCode && <small className="text-muted">Buscando...</small>}
           {existingMatch && (
             <div className="alert alert-danger" style={{ marginTop: 8 }}>
@@ -615,7 +622,7 @@ function ShoppingListModal({ allProducts, onClose, onCreateOrder }) {
   <meta charset="UTF-8">
   <title>Lista de compras</title>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 13px; margin: 24px; }
+    body { font-family: Arial, sans-serif; font-size: 13px; margin: 24px; } /* ignore-value overused-font Arial */
     h2 { margin: 0 0 4px; }
     .sub { color: #666; margin-bottom: 16px; font-size: 12px; }
     table { width: 100%; border-collapse: collapse; }

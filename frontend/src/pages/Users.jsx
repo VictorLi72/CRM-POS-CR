@@ -23,6 +23,9 @@ export default function Users() {
 
   async function saveUser(u) {
     setError('');
+    if (!u.nombre_completo.trim()) { setError('El nombre completo es obligatorio'); return; }
+    if (!u.id && !u.username.trim()) { setError('El nombre de usuario es obligatorio'); return; }
+    if (!u.id && !u.password.trim()) { setError('La contraseña es obligatoria'); return; }
     try {
       if (u.id) {
         const payload = { nombre_completo: u.nombre_completo, rol: u.rol, activo: u.activo };
@@ -55,7 +58,6 @@ export default function Users() {
 
   return (
     <Layout title="Usuarios">
-      {error && <div className="alert alert-danger">{error}</div>}
       <div className="toolbar">
         <div />
         <button className="btn" onClick={() => setModalUser({ ...EMPTY_USER })}>
@@ -100,13 +102,13 @@ export default function Users() {
       </div>
 
       {modalUser && (
-        <UserModal user={modalUser} onClose={() => setModalUser(null)} onSave={saveUser} />
+        <UserModal user={modalUser} onClose={() => { setModalUser(null); setError(''); }} onSave={saveUser} error={error} />
       )}
     </Layout>
   );
 }
 
-function UserModal({ user, onClose, onSave }) {
+function UserModal({ user, onClose, onSave, error }) {
   const [form, setForm] = useState(user);
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -115,6 +117,7 @@ function UserModal({ user, onClose, onSave }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{form.id ? 'Editar usuario' : 'Nuevo usuario'}</h2>
+        {error && <div className="alert alert-danger" style={{ marginBottom: 14 }}>{error}</div>}
         {!form.id && (
           <div className="form-group">
             <label>Usuario (para iniciar sesión)</label>

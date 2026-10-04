@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import api, { getPrinterName } from '../api/client';
+import api, { getPrinterName, getReceiptHeader, getReceiptOptions, setReceiptOptions } from '../api/client';
 import { formatCurrency, formatDate } from '../utils/format';
-import { buildReceiptHtml } from '../utils/receiptHtml';
+import { buildReceiptHtml, descargarRecibo, elegirImpresion } from '../utils/receiptHtml';
 
 const METODO_LABELS = {
   efectivo: 'Efectivo',
@@ -170,16 +170,45 @@ function SaleDetailModal({ sale, onClose, onAnulada }) {
   const [anulando, setAnulando] = useState(false);
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [errorAnular, setErrorAnular] = useState('');
-  const tieneAPIImpresion = typeof window !== 'undefined' && !!window.electronAPI;
+  const [vistaPrevia, setVistaPrevia] = useState(false);
+  const [opts, setOptsState] = useState(getReceiptOptions);
+
+  function setOpt(campo, valor) {
+    const next = { ...opts, [campo]: valor };
+    setOptsState(next);
+    setReceiptOptions(next);
+  }
+
+  const receiptHtml = buildReceiptHtml(sale, sale.cajero_nombre, getReceiptHeader(), opts);
 
   async function imprimir() {
     setErrorImpresion('');
     setImprimiendo(true);
     try {
-      const html = buildReceiptHtml(sale, sale.cajero_nombre);
-      await window.electronAPI.imprimirTiquete(html, getPrinterName());
-    } catch (err) {
-      setErrorImpresion('No se pudo imprimir. Revisá la impresora en Configuración.');
+      const html = buildReceiptHtml(sale, sale.cajero_nombre, getReceiptHeader(), opts);
+      if (window.electronAPI) {
+        try {
+          await window.electronAPI.imprimirTiquete(html, getPrinterName());
+        } catch {
+          descargarRecibo(html, sale.folio);
+        }
+      } else {
+        const choice = await elegirImpresion(html, sale.folio);
+        if (choice === 'print') {
+          const win = window.open('', '_blank', 'width=420,height=650');
+          if (!win) {
+            descargarRecibo(html, sale.folio);
+          } else {
+            win.document.write(html);
+            win.document.close();
+            setTimeout(() => win.print(), 400);
+          }
+        } else if (choice === 'download') {
+          descargarRecibo(html, sale.folio);
+        }
+      }
+    } catch {
+      setErrorImpresion('No se pudo procesar el tiquete.');
     } finally {
       setImprimiendo(false);
     }
@@ -214,42 +243,124 @@ function SaleDetailModal({ sale, onClose, onAnulada }) {
         <p className="text-muted">
           {formatDate(sale.creado_en)} · {sale.cliente_nombre || 'Sin cliente'} · Cajero: {sale.cajero_nombre}
         </p>
-        <table>
-          <tbody>
-            {sale.items.map((it) => (
-              <tr key={it.id}>
-                <td>
-                  {it.producto_nombre}
-                  <div className="text-muted">
-                    {it.cantidad} x {formatCurrency(it.precio_unitario)}
-                    {it.descuento > 0 && <> · desc. {formatCurrency(it.descuento)}</>}
-                  </div>
-                </td>
-                <td className="text-right">{formatCurrency(it.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 12 }}>
-          <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>{formatCurrency(sale.subtotal)}</span></div>
-          <div className="flex justify-between"><span className="text-muted">IVA</span><span>{formatCurrency(sale.iva_total)}</span></div>
-          <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 18 }}>
-            <span>Total</span><span>{formatCurrency(sale.total)}</span>
-          </div>
-          {sale.metodo_pago === 'mixto' && sale.pagos ? (
-            sale.pagos.map((p, i) => (
-              <div key={i} className="flex justify-between">
-                <span className="text-muted">{METODO_LABELS[p.metodo] || p.metodo}</span>
-                <span>{formatCurrency(p.monto)}</span>
-              </div>
-            ))
-          ) : (
-            <div className="flex justify-between"><span className="text-muted">Pago</span><span>{METODO_LABELS[sale.metodo_pago] || sale.metodo_pago}</span></div>
-          )}
-          {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
-            <div className="flex justify-between"><span className="text-muted">Vuelto</span><span>{formatCurrency(sale.vuelto)}</span></div>
-          )}
+        <div className="tab-group">
+          <button className={`tab-btn${!vistaPrevia ? ' active' : ''}`} onClick={() => setVistaPrevia(false)}>Detalles</button>
+          <button className={`tab-btn${vistaPrevia ? ' active' : ''}`} onClick={() => setVistaPrevia(true)}>Tiquete</button>
         </div>
+        {vistaPrevia ? (
+          <div>
+            <iframe
+              srcDoc={receiptHtml}
+              title="Vista previa tiquete"
+              style={{ width: '100%', height: 420, border: '1px solid var(--color-border)', borderRadius: 6, background: '#fff', display: 'block' }}
+              sandbox="allow-same-origin"
+            />
+            <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--color-surface-alt)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Opciones del tiquete</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px' }}>
+                {[
+                  { campo: 'mostrarFolio',      label: 'Nº tiquete' },
+                  { campo: 'mostrarTotalItems', label: 'Total artículos' },
+                  { campo: 'mostrarSubtotal',   label: 'Subtotal' },
+                  { campo: 'mostrarIva',        label: 'IVA' },
+                  { campo: 'mostrarCajero',     label: 'Cajero' },
+                  { campo: 'mostrarCodigo',     label: 'Código de barras' },
+                ].map(({ campo, label }) => (
+                  <label key={campo} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer', userSelect: 'none' }}>
+                    <input type="checkbox" checked={opts[campo]} onChange={(e) => setOpt(campo, e.target.checked)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {opts.mostrarCodigo && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    type="text"
+                    value={opts.mensajeCodigo}
+                    onChange={(e) => setOpt('mensajeCodigo', e.target.value)}
+                    placeholder="Mensaje bajo el código..."
+                    style={{ fontSize: 12, padding: '4px 8px' }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Tamaño:</span>
+                    <input
+                      type="range" min="1" max="4" step="1"
+                      value={opts.escalaCodigo ?? 2}
+                      onChange={(e) => setOpt('escalaCodigo', Number(e.target.value))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 60 }}>
+                      {['', 'Pequeño', 'Normal', 'Grande', 'Muy grande'][opts.escalaCodigo ?? 2]}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Margen código:</span>
+                    <input
+                      type="range" min="0" max="40" step="2"
+                      value={opts.margenCodigo ?? 10}
+                      onChange={(e) => setOpt('margenCodigo', Number(e.target.value))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 40 }}>
+                      {opts.margenCodigo ?? 10}px
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Margen tiquete:</span>
+                    <input
+                      type="range" min="0" max="20" step="1"
+                      value={opts.margenTiquete ?? 5}
+                      onChange={(e) => setOpt('margenTiquete', Number(e.target.value))}
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)', width: 40 }}>
+                      {opts.margenTiquete ?? 5}px
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <table>
+              <tbody>
+                {sale.items.map((it) => (
+                  <tr key={it.id}>
+                    <td>
+                      {it.producto_nombre}
+                      <div className="text-muted">
+                        {it.cantidad} x {formatCurrency(it.precio_unitario)}
+                        {it.descuento > 0 && <> · desc. {formatCurrency(it.descuento)}</>}
+                      </div>
+                    </td>
+                    <td className="text-right">{formatCurrency(it.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ marginTop: 12 }}>
+              <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>{formatCurrency(sale.subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-muted">IVA</span><span>{formatCurrency(sale.iva_total)}</span></div>
+              <div className="flex justify-between" style={{ fontWeight: 700, fontSize: 18 }}>
+                <span>Total</span><span>{formatCurrency(sale.total)}</span>
+              </div>
+              {sale.metodo_pago === 'mixto' && sale.pagos ? (
+                sale.pagos.map((p, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-muted">{METODO_LABELS[p.metodo] || p.metodo}</span>
+                    <span>{formatCurrency(p.monto)}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex justify-between"><span className="text-muted">Pago</span><span>{METODO_LABELS[sale.metodo_pago] || sale.metodo_pago}</span></div>
+              )}
+              {(sale.metodo_pago === 'efectivo' || sale.metodo_pago === 'mixto') && sale.vuelto > 0 && (
+                <div className="flex justify-between"><span className="text-muted">Vuelto</span><span>{formatCurrency(sale.vuelto)}</span></div>
+              )}
+            </div>
+          </>
+        )}
         {errorImpresion && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorImpresion}</div>}
         {errorAnular && <div className="alert alert-danger" style={{ marginTop: 12 }}>{errorAnular}</div>}
         {confirmAnular && (
@@ -272,11 +383,9 @@ function SaleDetailModal({ sale, onClose, onAnulada }) {
               Anular venta
             </button>
           )}
-          {tieneAPIImpresion && (
-            <button className="btn" onClick={imprimir} disabled={imprimiendo}>
-              {imprimiendo ? 'Imprimiendo...' : '🖨️ Reimprimir tiquete'}
-            </button>
-          )}
+          <button className="btn" onClick={imprimir} disabled={imprimiendo}>
+            {imprimiendo ? 'Imprimiendo...' : '🖨️ Reimprimir tiquete'}
+          </button>
         </div>
       </div>
     </div>

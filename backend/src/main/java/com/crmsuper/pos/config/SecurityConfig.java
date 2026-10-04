@@ -63,6 +63,7 @@ public class SecurityConfig {
                         // públicas
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/health/network").permitAll()
 
                         // productos y categorías
                         .requestMatchers(HttpMethod.POST, "/api/products/categories").hasAnyRole(ADMIN_SUPERVISOR)
