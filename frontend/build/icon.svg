@@ -1,0 +1,64 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="#1e6f5c"/>
+
+  <!-- Subtle inner glow on background -->
+  <rect width="512" height="512" rx="110" fill="url(#bg-glow)" opacity="0.3"/>
+
+  <!-- Receipt drop shadow -->
+  <rect x="147" y="68" width="230" height="290" rx="20" fill="rgba(0,0,0,0.18)"/>
+
+  <!-- Receipt body -->
+  <rect x="142" y="62" width="230" height="290" rx="18" fill="white"/>
+
+  <!-- Serrated / torn bottom of receipt -->
+  <path d="M142 318 L159 348 L176 318 L193 348 L210 318 L227 348 L244 318 L261 348 L278 318 L295 348 L312 318 L329 348 L346 318 L358 318 L358 352 L142 352 Z" fill="white"/>
+
+  <!-- Store name bar -->
+  <rect x="166" y="96" width="182" height="30" rx="15" fill="#1e6f5c"/>
+
+  <!-- Subtext (URL/address placeholder) -->
+  <rect x="196" y="136" width="122" height="14" rx="7" fill="#c8e8e2"/>
+
+  <!-- Separator after header -->
+  <rect x="166" y="160" width="182" height="2" rx="1" fill="#e4f2ef"/>
+
+  <!-- Item row 1 -->
+  <rect x="166" y="176" width="108" height="18" rx="9" fill="#d6eeea"/>
+  <rect x="302" y="176" width="46" height="18" rx="9" fill="#d6eeea"/>
+
+  <!-- Item row 2 -->
+  <rect x="166" y="204" width="88" height="18" rx="9" fill="#d6eeea"/>
+  <rect x="302" y="204" width="46" height="18" rx="9" fill="#d6eeea"/>
+
+  <!-- Item row 3 -->
+  <rect x="166" y="232" width="118" height="18" rx="9" fill="#d6eeea"/>
+  <rect x="302" y="232" width="46" height="18" rx="9" fill="#d6eeea"/>
+
+  <!-- Item row 4 -->
+  <rect x="166" y="260" width="76" height="18" rx="9" fill="#d6eeea"/>
+  <rect x="302" y="260" width="46" height="18" rx="9" fill="#d6eeea"/>
+
+  <!-- Total separator -->
+  <rect x="166" y="292" width="182" height="2.5" rx="1.25" fill="#c0dfda"/>
+
+  <!-- Total label -->
+  <rect x="166" y="302" width="70" height="16" rx="8" fill="#b5d8d1"/>
+
+  <!-- Total amount -->
+  <rect x="258" y="298" width="90" height="26" rx="13" fill="#1e6f5c"/>
+
+  <!-- Checkmark badge -->
+  <circle cx="368" cy="396" r="88" fill="#1e6f5c" stroke="white" strokeWidth="22"/>
+  <!-- Badge inner highlight ring -->
+  <circle cx="368" cy="396" r="70" fill="#1e6f5c" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
+  <!-- Checkmark path -->
+  <path d="M328 396 L356 425 L412 368" stroke="white" strokeWidth="28" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+
+  <defs>
+    <radialGradient id="bg-glow" cx="30%" cy="20%" r="60%">
+      <stop offset="0%" stopColor="white"/>
+      <stop offset="100%" stopColor="transparent"/>
+    </radialGradient>
+  </defs>
+</svg>

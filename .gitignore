@@ -22,3 +22,7 @@ backend/.node/
 # Archivos del sistema operativo
 .DS_Store
 Thumbs.db
+
+# ZIP de distribución (se sube a GitHub Releases, no al repo)
+*.zip
+CRM-Super-CR/

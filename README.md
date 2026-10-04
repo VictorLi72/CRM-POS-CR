@@ -2,44 +2,39 @@
 
 ![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
+![H2](https://img.shields.io/badge/H2-embebida-1e6f5c?logo=databricks&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)
 ![Licencia](https://img.shields.io/badge/uso-privado-lightgrey)
 
 ## ⬇️ Descarga rápida
 
-**[→ Descargar CRM-Super-CR.rar (Releases)](https://github.com/VictorLi72/CRM-POS-CR/releases/latest)**
+**[→ Descargar CRM-Super-CR.zip (Releases)](https://github.com/VictorLi72/CRM-POS-CR/releases/latest)**
 
-El RAR incluye todo. Extraelo y seguí según lo que necesitás:
+El ZIP incluye todo lo necesario. Extraelo y seguí los pasos según lo que necesitás:
 
-### PC Servidor (la que tiene MySQL — una sola vez)
+### PC Servidor (una sola vez)
 
-> Requisitos: [Java 17+](https://adoptium.net/) y [MySQL 8](https://dev.mysql.com/downloads/mysql/) instalados.
+> Requisito único: [Java 17+](https://adoptium.net/) instalado.
+> No se necesita MySQL ni ninguna base de datos externa — los datos se guardan localmente en un archivo.
 
-1. Abrí MySQL y creá la base de datos:
-   ```sql
-   CREATE DATABASE IF NOT EXISTS crm_super_pos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   CREATE USER IF NOT EXISTS 'crm_super'@'%' IDENTIFIED BY 'TU-CONTRASENA';
-   GRANT ALL PRIVILEGES ON crm_super_pos.* TO 'crm_super'@'%';
-   FLUSH PRIVILEGES;
-   ```
-2. Abrí el archivo `servidor/iniciar-servidor.bat` con el Bloc de notas y cambiá `DB_PASS` y `JWT_SECRET`
-3. Guardá y **doble clic** en `iniciar-servidor.bat` — el servidor arranca en el puerto 4000
-4. Anotá la IP de esta PC (`ipconfig` → "Dirección IPv4"), la van a necesitar las cajas
+1. Copiá la carpeta `servidor/` a la PC que hará de servidor
+2. Doble clic en `servidor/iniciar-servidor.bat` — el servidor arranca en el puerto 4000
+3. Anotá la IP de esta PC (`ipconfig` → "Dirección IPv4"), la van a necesitar las cajas
+4. Dejá esa ventana abierta mientras el negocio esté en operación
 
 ### PC Caja (cada caja del negocio)
 
-> No necesita Java, Node.js ni nada — solo Windows.
+> No necesita Java ni nada adicional — solo Windows.
 
-1. Doble clic en `caja/CRM-Super-CR Setup.exe` → se instala
-2. Abrí la app → tocá **"Cambiar dirección del servidor"** → poné `http://192.168.X.X:4000`
+1. Doble clic en `caja/CRM Super Setup 1.0.1.exe` → se instala automáticamente
+2. Abrí la app → en la pantalla de login tocá **"Cambiar dirección del servidor"** → poné `http://192.168.X.X:4000` (la IP del paso anterior)
 3. Iniciá sesión — ¡listo!
 
-| Usuario  | Contraseña | Rol   |
-|----------|-----------|-------|
-| admin    | admin123  | Administrador |
-| cajero1  | cajero123 | Cajero |
+| Usuario  | Contraseña | Rol           |
+|----------|------------|---------------|
+| admin    | admin123   | Administrador |
+| cajero1  | cajero123  | Cajero        |
 
 **Cambiá estas contraseñas desde Usuarios apenas entrés por primera vez.**
 
@@ -53,8 +48,8 @@ código de barras, inventario, clientes (CRM) con fiado, pedidos, devoluciones,
 
 - [Arquitectura](#arquitectura)
 - [Funciones incluidas](#funciones-incluidas)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
+- [Requisitos para desarrollo](#requisitos-para-desarrollo)
+- [Instalación para desarrollo](#instalación-para-desarrollo)
 - [Uso diario](#uso-diario)
 - [Estructura del código](#estructura-del-código)
 - [Próximos pasos sugeridos](#próximos-pasos-sugeridos)
@@ -63,8 +58,9 @@ código de barras, inventario, clientes (CRM) con fiado, pedidos, devoluciones,
 
 ```
 D:\CRM-POS-CR
-├── backend/    Servidor central (Java 17 + Spring Boot + MySQL), arquitectura MVC en capas
+├── backend/    Servidor central (Java 17 + Spring Boot + H2 embebida), arquitectura MVC en capas
 │               (Controller → Service → Repository → Model). Corre en UNA sola PC del súper.
+│               Los datos se guardan en ./datos/crm_db.mv.db junto al JAR — sin instalar nada.
 └── frontend/   App de caja (Electron + React + Vite). Se instala en cada caja/PC y se
                 conecta al backend por la red local (WiFi/cable, misma red del súper).
 ```
@@ -82,7 +78,6 @@ en tiempo real entre todas las cajas y la administración.
 - Métodos de pago: efectivo (con vuelto), tarjeta, SINPE Móvil, fiado y mixto (varios métodos)
 - Tiquete moderno al finalizar con diseño de dos columnas, totales y código de barras
 - Impresión directa a impresora térmica Epson TM-T20II (80 mm) o cualquier impresora via diálogo del sistema
-- En modo web: elige entre imprimir (diálogo del SO) o descargar el archivo HTML
 - Auto-impresión configurable al completar la venta
 
 ### Inventario
@@ -139,10 +134,10 @@ en tiempo real entre todas las cajas y la administración.
 - **Alto contraste**: refuerza bordes y texto secundario
 - **Animaciones**: apagar para reducir movimiento
 - Preferencias guardadas en `localStorage`, se aplican al instante y persisten entre sesiones
-- La pantalla de login siempre se muestra en modo claro independientemente del tema activo
 
 ### Acceso móvil
-- QR desde el módulo de inventario para ver la lista de compras en el teléfono sin instalar nada
+- QR desde Configuración → Acceso desde teléfono para ver el inventario desde el navegador del celular
+- Detecta la IP de la PC automáticamente; también se puede ingresar manualmente
 
 ---
 
@@ -155,66 +150,42 @@ alcance por ahora. Para conectarlo más adelante se necesita: certificado digita
 (.p12), usuario/clave del ATV, y armar el XML según el formato v4.3 vigente de Hacienda.
 Es un módulo que se puede agregar después sin rehacer el resto del sistema.
 
-## Requisitos
+## Requisitos para desarrollo
 
-| Herramienta | Versión | Para qué |
-|---|---|---|
+| Herramienta | Versión        | Para qué                              |
+|-------------|----------------|---------------------------------------|
 | [JDK](https://adoptium.net/) | 17 o superior | Compilar y correr el backend |
 | [Maven](https://maven.apache.org/download.cgi) | 3.9 o superior | Compilar el backend |
-| [MySQL](https://dev.mysql.com/downloads/mysql/) | 8.0 o superior | Base de datos central |
-| [Node.js](https://nodejs.org) | 18 o superior | Frontend (Electron + React + Vite) |
-| Windows | 10/11 | — |
+| [Node.js](https://nodejs.org) | 18 o superior  | Frontend (Electron + React + Vite)    |
+| Windows     | 10/11          | —                                     |
 
-## Instalación
+> Para **usar** el sistema (no desarrollar) solo se necesita Java 17 en la PC servidor.
+> Las PCs caja no necesitan nada adicional.
 
-### 1. Base de datos (una sola vez, en la PC que hará de "servidor")
+## Instalación para desarrollo
 
-Con MySQL instalado y corriendo, creá la base y un usuario dedicado:
-
-```sql
-CREATE DATABASE IF NOT EXISTS crm_super_pos
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE USER IF NOT EXISTS 'crm_super'@'%' IDENTIFIED BY 'CAMBIA-ESTA-CONTRASENA';
-GRANT ALL PRIVILEGES ON crm_super_pos.* TO 'crm_super'@'%';
-FLUSH PRIVILEGES;
-```
-
-### 2. Servidor central (backend Java)
+### 1. Servidor central (backend Java)
 
 ```bash
 cd D:/CRM-POS-CR/backend
-```
-
-Configurá la conexión con variables de entorno:
-
-```powershell
-$env:SPRING_DATASOURCE_URL = "jdbc:mysql://localhost:3306/crm_super_pos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-$env:SPRING_DATASOURCE_USERNAME = "crm_super"
-$env:SPRING_DATASOURCE_PASSWORD = "CAMBIA-ESTA-CONTRASENA"
-$env:APP_JWT_SECRET = "cambia-este-secreto-en-produccion"
-```
-
-Arrancá el servidor:
-
-```bash
 mvn spring-boot:run
 ```
 
-En el primer arranque Spring Boot crea todas las tablas automáticamente y siembra datos de
-prueba: dos usuarios, categorías, productos demo, tarifas de IVA y descuentos.
+En el primer arranque Spring Boot crea todas las tablas automáticamente con H2 y siembra
+datos de prueba: dos usuarios, categorías, productos demo, tarifas de IVA y descuentos.
+Los datos quedan en `backend/datos/crm_db.mv.db`.
 
-| Usuario  | Contraseña | Rol   |
-|----------|-----------|-------|
-| admin    | admin123  | Administrador |
-| cajero1  | cajero123 | Cajero |
+| Usuario  | Contraseña | Rol           |
+|----------|------------|---------------|
+| admin    | admin123   | Administrador |
+| cajero1  | cajero123  | Cajero        |
 
 **Cambiá estas contraseñas desde la pantalla de Usuarios apenas entrés.**
 
 El servidor queda escuchando en `http://0.0.0.0:4000`. Anotá la IP local de esta PC
 (`ipconfig` en PowerShell, buscá "Dirección IPv4") — las demás cajas la van a necesitar.
 
-### 3. Cada caja (incluida la PC servidor si también va a vender)
+### 2. Cada caja (incluida la PC servidor si también va a vender)
 
 ```bash
 cd D:/CRM-POS-CR/frontend
@@ -226,34 +197,47 @@ Al abrir la app por primera vez, si no encuentra el servidor, usá el enlace
 **"Cambiar dirección del servidor"** en la pantalla de login y poné
 `http://<IP-de-la-PC-servidor>:4000` (por ejemplo `http://192.168.1.10:4000`).
 
-### 4. Lector de código de barras
+### 3. Lector de código de barras
 
 Conectalo por USB: los lectores estándar funcionan como un teclado (envían los dígitos y
 luego Enter) sin instalación — escaneá con el cursor en el campo de búsqueda del POS.
 También podés usar la cámara integrada con el botón de cámara en el POS.
 
-### 5. Impresora térmica (opcional)
+### 4. Impresora térmica (opcional)
 
 Compatible con cualquier impresora de 80 mm. Probada con Epson TM-T20II.
 - **Modo Electron (app instalada)**: seleccioná la impresora en Configuración → Impresora.
 - **Modo web**: al imprimir aparece un diálogo para elegir entre el diálogo del sistema o descargar el HTML.
 
-## Uso diario
-
-1. La PC servidor debe estar encendida con el backend Java corriendo.
-2. En cada caja, abrí la app (`npm run dev` o el `.exe` instalado).
-3. Iniciá sesión con tu usuario y contraseña.
-4. El cajero accede al POS; supervisor y administrador tienen acceso a inventario, reportes y más.
-
 ## Generar el instalador de Windows
 
 ```bash
 cd D:/CRM-POS-CR/frontend
-npm run build
 npm run dist
 ```
 
-Genera un instalador `.exe` en `frontend/release/` que podés copiar a cada caja.
+Genera un instalador `.exe` en `../release/` que podés copiar a cada caja.
+
+Para recompilar el backend:
+
+```bash
+cd D:/CRM-POS-CR/backend
+mvn clean package -DskipTests -DskipFrontend=true
+```
+
+El JAR queda en `backend/target/pos-backend.jar`.
+
+## Uso diario
+
+1. La PC servidor debe estar encendida con `iniciar-servidor.bat` corriendo.
+2. En cada caja, abrí la app instalada.
+3. Iniciá sesión con tu usuario y contraseña.
+4. El cajero accede al POS; supervisor y administrador tienen acceso a inventario, reportes y más.
+
+## Respaldo de datos
+
+Los datos están en un único archivo: `servidor/datos/crm_db.mv.db`.
+Para hacer un respaldo, simplemente copiá ese archivo a un USB o la nube mientras el servidor **no** está corriendo.
 
 ## Estructura del código
 
@@ -311,6 +295,6 @@ frontend/src/
 ## Próximos pasos sugeridos
 
 - Conectar facturación electrónica real con Hacienda (certificado .p12 + ATV + XML v4.3).
-- Respaldo automático de la base de datos MySQL (`mysqldump` programado, copiado a USB o la nube).
+- Respaldo automático programado del archivo `crm_db.mv.db` a USB o la nube.
 - Empaquetar el backend como servicio de Windows para que arranque solo con la PC (NSSM/WinSW).
 - App móvil nativa o PWA para supervisores que necesiten ver reportes desde el teléfono.

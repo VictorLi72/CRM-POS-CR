@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const os = require('os');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -44,6 +45,17 @@ app.on('window-all-closed', () => {
 // impresión de Windows. Esto evita depender de drivers ESC/POS o módulos
 // nativos: cualquier impresora térmica instalada como impresora normal de
 // Windows funciona, porque Electron imprime a través del driver del sistema.
+
+ipcMain.handle('obtener-ip-local', () => {
+  const ifaces = os.networkInterfaces();
+  const ips = [];
+  for (const list of Object.values(ifaces)) {
+    for (const iface of list) {
+      if (iface.family === 'IPv4' && !iface.internal) ips.push(iface.address);
+    }
+  }
+  return ips;
+});
 
 ipcMain.handle('listar-impresoras', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);

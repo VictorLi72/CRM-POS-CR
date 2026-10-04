@@ -10,7 +10,8 @@
     "electron:dev": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
     "build": "vite build",
     "preview": "vite preview",
-    "dist": "npm run build && electron-builder"
+    "dist": "vite build --outDir dist && electron-builder",
+    "icon": "node scripts/generate-icon.js"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",
@@ -23,12 +24,14 @@
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@vitejs/plugin-react": "^4.3.1",
     "bcryptjs": "^3.0.3",
     "concurrently": "^9.0.1",
     "cross-env": "^7.0.3",
     "electron": "^32.1.2",
     "electron-builder": "^24.13.3",
+    "png-to-ico": "^2.1.8",
     "vite": "^5.4.6",
     "wait-on": "^8.0.0"
   },
@@ -42,8 +45,10 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "icon": "build/icon.ico",
     "win": {
       "target": "nsis",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     }
   },
