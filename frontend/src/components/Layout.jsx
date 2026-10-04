@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../api/client';
 import { getA11y, setA11y } from '../utils/a11y.js';
+import AppLogo from './AppLogo.jsx';
 import {
   IconHome, IconPOS, IconPackage, IconUsers, IconClipboard,
   IconCart, IconRotateCCW, IconClock, IconWallet, IconBarChart,
@@ -182,8 +183,13 @@ export default function Layout({ title, topbarExtra, children }) {
 
       <aside className={`sidebar${menuOpen ? ' sidebar--open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="sidebar-brand-name">CRM Super CR</div>
-          <span className="sidebar-brand-subtitle">Punto de Venta &amp; Gestión</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AppLogo size={34} />
+            <div>
+              <div className="sidebar-brand-name">CRM Super CR</div>
+              <span className="sidebar-brand-subtitle">Punto de Venta &amp; Gestión</span>
+            </div>
+          </div>
         </div>
         <nav className="sidebar-nav">
           {items.map((item) => (

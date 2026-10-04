@@ -2,16 +2,22 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import Layout from '../components/Layout.jsx';
 
-function detectarIpsLocales() {
-  return new Promise((resolve) => {
-    // Si ya estamos en una IP de red (no localhost), usarla directamente
-    const hostname = window.location.hostname;
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      resolve([hostname]);
-      return;
-    }
+async function detectarIpsLocales() {
+  // Electron: obtener IP desde el proceso principal (Node.js os.networkInterfaces)
+  if (window.electronAPI?.obtenerIpLocal) {
+    try {
+      const ips = await window.electronAPI.obtenerIpLocal();
+      if (ips && ips.length > 0) return ips;
+    } catch {}
+  }
 
-    // WebRTC: obtener IPs locales desde el navegador sin backend
+  // Fallback WebRTC (navegador web)
+  const hostname = window.location.hostname;
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return [hostname];
+  }
+
+  return new Promise((resolve) => {
     try {
       const pc = new RTCPeerConnection({ iceServers: [] });
       const ips = new Set();
@@ -20,10 +26,7 @@ function detectarIpsLocales() {
       pc.onicecandidate = (e) => {
         if (!e || !e.candidate) {
           pc.close();
-          const lista = [...ips].filter(
-            (ip) => !ip.startsWith('127.') && !ip.startsWith('169.254.')
-          );
-          resolve(lista.length > 0 ? lista : []);
+          resolve([...ips].filter((ip) => !ip.startsWith('127.') && !ip.startsWith('169.254.')));
           return;
         }
         const m = e.candidate.candidate.match(/(\d{1,3}(?:\.\d{1,3}){3})/g);
@@ -31,10 +34,7 @@ function detectarIpsLocales() {
       };
       setTimeout(() => {
         pc.close();
-        const lista = [...ips].filter(
-          (ip) => !ip.startsWith('127.') && !ip.startsWith('169.254.')
-        );
-        resolve(lista.length > 0 ? lista : []);
+        resolve([...ips].filter((ip) => !ip.startsWith('127.') && !ip.startsWith('169.254.')));
       }, 2000);
     } catch {
       resolve([]);
@@ -62,13 +62,13 @@ export default function MobileAccess() {
 
   useEffect(() => {
     if (!activeIp) { setQrDataUrl(''); return; }
-    const url = `http://${activeIp}:5173/#/inventory`;
+    const url = `http://${activeIp}:4000/#/inventory`;
     QRCode.toDataURL(url, { width: 280, margin: 2, errorCorrectionLevel: 'M' })
       .then(setQrDataUrl)
       .catch(() => {});
   }, [activeIp]);
 
-  const phoneUrl = activeIp ? `http://${activeIp}:5173/#/inventory` : '';
+  const phoneUrl = activeIp ? `http://${activeIp}:4000/#/inventory` : '';
 
   return (
     <Layout title="Acceso desde teléfono">

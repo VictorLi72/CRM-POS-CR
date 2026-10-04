@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getServerUrl, setServerUrl } from '../api/client';
 import { applyA11y } from '../utils/a11y.js';
+import AppLogo from '../components/AppLogo.jsx';
 
 const SAVED_USERS_KEY = 'crm_saved_users';
 
@@ -82,8 +83,13 @@ export default function Login() {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <h1>CRM Super CR</h1>
-        <p className="subtitle">Servidor: {getServerUrl()}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <AppLogo size={44} />
+          <div>
+            <h1 style={{ margin: 0 }}>CRM Super CR</h1>
+            <p className="subtitle" style={{ margin: 0 }}>Servidor: {getServerUrl()}</p>
+          </div>
+        </div>
 
         {error && <div className="alert alert-danger">{error}</div>}
 

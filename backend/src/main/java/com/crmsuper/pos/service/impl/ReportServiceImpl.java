@@ -52,13 +52,13 @@ public class ReportServiceImpl implements ReportService {
 
         TotalCantidadRow ventasHoy = jdbc.queryForObject("""
                 SELECT COALESCE(SUM(total), 0) AS total, COUNT(*) AS cantidad
-                FROM ventas WHERE estado = 'completada' AND DATE(DATE_SUB(creado_en, INTERVAL 6 HOUR)) = :hoy
+                FROM ventas WHERE estado = 'completada' AND CAST(DATEADD('HOUR', -6, creado_en) AS DATE) = :hoy
                 """, hoyParams, this::mapTotalCantidad);
 
         TotalCantidadRow ventasMes = jdbc.queryForObject("""
                 SELECT COALESCE(SUM(total), 0) AS total, COUNT(*) AS cantidad
                 FROM ventas WHERE estado = 'completada'
-                  AND DATE_FORMAT(DATE_SUB(creado_en, INTERVAL 6 HOUR), '%Y-%m') = :mes
+                  AND FORMATDATETIME(DATEADD('HOUR', -6, creado_en), 'yyyy-MM') = :mes
                 """, mesParams, this::mapTotalCantidad);
 
         long productosStockBajo = jdbc.queryForObject(
@@ -71,7 +71,7 @@ public class ReportServiceImpl implements ReportService {
         List<ProductoTopRow> productosTopHoy = jdbc.query("""
                 SELECT dv.producto_nombre, SUM(dv.cantidad) AS cantidad, SUM(dv.total) AS ingreso
                 FROM detalle_ventas dv JOIN ventas v ON v.id = dv.venta_id
-                WHERE v.estado = 'completada' AND DATE(DATE_SUB(v.creado_en, INTERVAL 6 HOUR)) = :hoy
+                WHERE v.estado = 'completada' AND CAST(DATEADD('HOUR', -6, v.creado_en) AS DATE) = :hoy
                 GROUP BY dv.producto_id, dv.producto_nombre ORDER BY ingreso DESC LIMIT 5
                 """, hoyParams, (rs, n) -> ProductoTopRow.builder()
                 .productoNombre(rs.getString("producto_nombre"))
@@ -92,7 +92,7 @@ public class ReportServiceImpl implements ReportService {
     @Transactional(readOnly = true)
     public List<SalesByDayRow> salesByDay(String from, String to) {
         StringBuilder sql = new StringBuilder("""
-                SELECT DATE(DATE_SUB(creado_en, INTERVAL 6 HOUR)) AS dia, SUM(total) AS total, COUNT(*) AS cantidad
+                SELECT CAST(DATEADD('HOUR', -6, creado_en) AS DATE) AS dia, SUM(total) AS total, COUNT(*) AS cantidad
                 FROM ventas WHERE estado = 'completada'
                 """);
         MapSqlParameterSource params = withRango(sql, from, to, "creado_en");
@@ -187,11 +187,11 @@ public class ReportServiceImpl implements ReportService {
     private MapSqlParameterSource withRango(StringBuilder sql, String from, String to, String columna) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         if (from != null && !from.isBlank()) {
-            sql.append(" AND DATE_SUB(").append(columna).append(", INTERVAL 6 HOUR) >= :from");
+            sql.append(" AND DATEADD('HOUR', -6, ").append(columna).append(") >= :from");
             params.addValue("from", from);
         }
         if (to != null && !to.isBlank()) {
-            sql.append(" AND DATE_SUB(").append(columna).append(", INTERVAL 6 HOUR) <= :to");
+            sql.append(" AND DATEADD('HOUR', -6, ").append(columna).append(") <= :to");
             params.addValue("to", to);
         }
         return params;
