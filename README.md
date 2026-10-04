@@ -7,6 +7,24 @@
 ![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)
 ![Licencia](https://img.shields.io/badge/uso-privado-lightgrey)
 
+## ⬇️ Descarga rápida (instalar en otra caja)
+
+> Solo para instalar la **app de caja** en una PC adicional.
+> El servidor central (backend + MySQL) sigue corriendo en la PC principal.
+
+**[→ Descargar última versión (Releases)](https://github.com/VictorLi72/CRM-POS-CR/releases/latest)**
+
+1. Descargá el archivo `CRM-Super-CR-Caja.rar`
+2. Extraelo y ejecutá el instalador `.exe` que está adentro
+3. Al abrir la app, tocá **"Cambiar dirección del servidor"** en el login
+4. Poné la IP de la PC principal, por ejemplo: `http://192.168.1.10:4000`
+5. Iniciá sesión con tu usuario y contraseña
+
+> **¿Cómo saber la IP de la PC principal?**
+> Abrí PowerShell y escribí `ipconfig` — buscá "Dirección IPv4" en la sección de tu red.
+
+---
+
 Sistema de escritorio para supermercados en Costa Rica: punto de venta con lector de
 código de barras, inventario, clientes (CRM) con fiado, pedidos, devoluciones,
 órdenes de compra a proveedores, reportes/dashboard y usuarios con varios niveles de acceso.
