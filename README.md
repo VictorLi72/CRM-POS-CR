@@ -8,8 +8,8 @@
 ![Licencia](https://img.shields.io/badge/uso-privado-lightgrey)
 
 Sistema de escritorio para supermercados en Costa Rica: punto de venta con lector de
-código de barras, inventario, clientes (CRM) con fiado, reportes/dashboard y usuarios
-con varios niveles de acceso.
+código de barras, inventario, clientes (CRM) con fiado, pedidos, devoluciones,
+órdenes de compra a proveedores, reportes/dashboard y usuarios con varios niveles de acceso.
 
 ## Índice
 
@@ -27,62 +27,111 @@ con varios niveles de acceso.
 D:\CRM-POS-CR
 ├── backend/    Servidor central (Java 17 + Spring Boot + MySQL), arquitectura MVC en capas
 │               (Controller → Service → Repository → Model). Corre en UNA sola PC del súper.
-└── frontend/   App de caja (Electron + React). Se instala en cada caja/PC y se conecta
-                al backend por la red local (WiFi/cable, misma red del súper).
+└── frontend/   App de caja (Electron + React + Vite). Se instala en cada caja/PC y se
+                conecta al backend por la red local (WiFi/cable, misma red del súper).
 ```
 
 Cada caja es un cliente liviano: no guarda su propia base de datos, todas las cajas leen
 y escriben en el mismo servidor central, así el inventario y las ventas quedan sincronizados
 en tiempo real entre todas las cajas y la administración.
 
-El contrato HTTP (rutas, verbos, formas de las respuestas JSON) se mantiene igual al
-que tenía la versión anterior del backend, así que el frontend actual sigue funcionando
-sin cambios apuntando a este backend.
-
 ## Funciones incluidas
 
-- **Punto de venta (POS)**: entrada por lector de código de barras (funciona como teclado,
-  no necesita drivers especiales) o búsqueda por nombre, carrito, cálculo automático de IVA
-  por línea, pagos en efectivo (con vuelto)/tarjeta/SINPE Móvil/fiado, tiquete al finalizar.
-- **Inventario**: productos con categorías, precio de costo/venta, tarifa de IVA (13/4/2/1/0%),
-  código CABYS (para factura electrónica futura), control de stock con alertas de stock bajo,
-  y registro de movimientos (entradas, salidas, ajustes).
-- **CRM de clientes**: ficha de cliente, historial de compras, cuentas fiadas con límite de
-  crédito, registro de abonos, puntos de lealtad automáticos (1 punto por cada ₡1000).
-- **Reportes y dashboard**: ventas de hoy/mes, ventas por día (gráfico), top productos,
-  ventas por categoría, ventas por cajero, margen de ganancia.
-- **Cierre de caja (arqueo)**: apertura/cierre de turno por cajero, resumen de ventas por
-  método de pago, efectivo esperado vs. contado, diferencia.
-- **Usuarios con niveles de acceso**:
-  - **Cajero**: solo POS y clientes.
-  - **Supervisor**: + inventario y reportes.
-  - **Administrador**: acceso total, incluida la gestión de usuarios.
+### Punto de venta (POS)
+- Entrada por lector de código de barras (funciona como teclado, sin drivers) o búsqueda por nombre
+- Escaneo con cámara integrada (BarcodeScanner con jsQR)
+- Carrito con cantidades editables, cálculo automático de IVA por línea y descuentos
+- Métodos de pago: efectivo (con vuelto), tarjeta, SINPE Móvil, fiado y mixto (varios métodos)
+- Tiquete moderno al finalizar con diseño de dos columnas, totales y código de barras
+- Impresión directa a impresora térmica Epson TM-T20II (80 mm) o cualquier impresora via diálogo del sistema
+- En modo web: elige entre imprimir (diálogo del SO) o descargar el archivo HTML
+- Auto-impresión configurable al completar la venta
+
+### Inventario
+- Productos con categorías, precio de costo/venta, tarifa de IVA (13/4/2/1/0 %), código CABYS
+- Control de stock con alertas de stock bajo (campana en topbar con conteo en tiempo real)
+- Registro de movimientos: entradas, salidas, ajustes manuales
+- **Lista de compras automática**: genera la lista de productos con stock bajo o agotado,
+  imprimible o visible en el teléfono via QR
+
+### Pedidos
+- Módulo de pedidos para clientes: crear, ver detalle, cambiar estado
+- Integrado con inventario y clientes existentes
+
+### Órdenes de compra y proveedores
+- Gestión de proveedores (nombre, contacto, teléfono, email)
+- Órdenes de compra a proveedores con líneas de productos, estado (pendiente/recibida/cancelada)
+- Al recibir una orden, ajusta automáticamente el stock del inventario
+
+### Devoluciones
+- Devoluciones de venta con detalle de ítems y motivo
+- Anular una venta completa desde el historial (registra la anulación sin borrar el registro)
+
+### Historial de ventas
+- Búsqueda por folio, fecha, cajero y método de pago
+- Ver detalle completo de cada venta
+- Reimprimir tiquete (mismo diseño moderno que el tiquete original)
+- Indicador visual de ventas con devolución o anuladas
+
+### CRM de clientes
+- Ficha de cliente, historial de compras, cuentas fiadas con límite de crédito
+- Registro de abonos, puntos de lealtad automáticos (1 punto por cada ₡1 000)
+
+### Cierre de caja (arqueo)
+- Apertura/cierre de turno por cajero
+- Resumen de ventas por método de pago
+- Efectivo esperado vs. contado, diferencia
+
+### Reportes y dashboard
+- Ventas de hoy/mes, ventas por día (gráfico), top productos
+- Ventas por categoría, ventas por cajero, margen de ganancia
+
+### Configuración
+- Encabezado del tiquete (nombre del negocio, cédula, teléfono, dirección, leyenda)
+- Opciones de impresión: código de barras, folio, cajero, subtotal, IVA, unidades
+- Selección de impresora (modo Electron), auto-impresión, impresora predeterminada
+- IVA por tarifa, descuentos automáticos
+- Gestión de usuarios con niveles de acceso (administrador / supervisor / cajero)
+- Dirección del servidor configurable desde login (para cajas adicionales)
+
+### Accesibilidad
+- Panel de accesibilidad en el topbar (ícono de persona): abierto con un clic
+- **Tema**: claro, oscuro o automático (sigue la preferencia del sistema operativo)
+- **Tamaño de texto**: 4 niveles (S / M / L / XL) via zoom proporcional
+- **Alto contraste**: refuerza bordes y texto secundario
+- **Animaciones**: apagar para reducir movimiento
+- Preferencias guardadas en `localStorage`, se aplican al instante y persisten entre sesiones
+- La pantalla de login siempre se muestra en modo claro independientemente del tema activo
+
+### Acceso móvil
+- QR desde el módulo de inventario para ver la lista de compras en el teléfono sin instalar nada
+
+---
 
 ### Sobre la factura electrónica (Hacienda / ATV)
 
 El sistema ya guarda todo lo necesario para facturación electrónica de Costa Rica
 (código CABYS por producto, desglose de IVA por línea y por tarifa), pero **no** está
 conectado al Administrador Tributario Virtual (ATV) de Hacienda — eso quedó fuera del
-alcance por ahora, tal como se definió al iniciar el proyecto. Para conectarlo de verdad
-más adelante se necesita: certificado digital de firma (.p12), usuario/clave del ATV, y
-armar el XML según el formato v4.3 vigente de Hacienda — es un módulo que se puede agregar
-después sin rehacer el resto del sistema.
+alcance por ahora. Para conectarlo más adelante se necesita: certificado digital de firma
+(.p12), usuario/clave del ATV, y armar el XML según el formato v4.3 vigente de Hacienda.
+Es un módulo que se puede agregar después sin rehacer el resto del sistema.
 
 ## Requisitos
 
 | Herramienta | Versión | Para qué |
 |---|---|---|
 | [JDK](https://adoptium.net/) | 17 o superior | Compilar y correr el backend |
-| [Maven](https://maven.apache.org/download.cgi) | 3.9 o superior | Compilar el backend (o usá `mvnw` si se agrega el wrapper) |
+| [Maven](https://maven.apache.org/download.cgi) | 3.9 o superior | Compilar el backend |
 | [MySQL](https://dev.mysql.com/downloads/mysql/) | 8.0 o superior | Base de datos central |
-| [Node.js](https://nodejs.org) | 18 o superior | Solo para el frontend (Electron + React) |
+| [Node.js](https://nodejs.org) | 18 o superior | Frontend (Electron + React + Vite) |
 | Windows | 10/11 | — |
 
 ## Instalación
 
 ### 1. Base de datos (una sola vez, en la PC que hará de "servidor")
 
-Con MySQL instalado y corriendo, creá la base y (opcionalmente) un usuario dedicado:
+Con MySQL instalado y corriendo, creá la base y un usuario dedicado:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS crm_super_pos
@@ -99,8 +148,7 @@ FLUSH PRIVILEGES;
 cd D:/CRM-POS-CR/backend
 ```
 
-Configurá la conexión a la base con variables de entorno (ajustá usuario/contraseña a lo
-que hayas creado arriba):
+Configurá la conexión con variables de entorno:
 
 ```powershell
 $env:SPRING_DATASOURCE_URL = "jdbc:mysql://localhost:3306/crm_super_pos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
@@ -109,15 +157,14 @@ $env:SPRING_DATASOURCE_PASSWORD = "CAMBIA-ESTA-CONTRASENA"
 $env:APP_JWT_SECRET = "cambia-este-secreto-en-produccion"
 ```
 
-Y arrancá el servidor:
+Arrancá el servidor:
 
 ```bash
 mvn spring-boot:run
 ```
 
-En el primer arranque, Spring Boot crea todas las tablas automáticamente (no hace falta
-correr ningún script de esquema) y siembra datos de prueba: dos usuarios, categorías,
-productos demo, tarifas de IVA y descuentos.
+En el primer arranque Spring Boot crea todas las tablas automáticamente y siembra datos de
+prueba: dos usuarios, categorías, productos demo, tarifas de IVA y descuentos.
 
 | Usuario  | Contraseña | Rol   |
 |----------|-----------|-------|
@@ -129,11 +176,7 @@ productos demo, tarifas de IVA y descuentos.
 El servidor queda escuchando en `http://0.0.0.0:4000`. Anotá la IP local de esta PC
 (`ipconfig` en PowerShell, buscá "Dirección IPv4") — las demás cajas la van a necesitar.
 
-Para que el servidor siga corriendo aunque cierres sesión, dejá esa PC encendida con el
-proceso corriendo (o empaquetalo como servicio de Windows con `mvn package` + un runner
-tipo NSSM/WinSW).
-
-### 3. Cada caja (incluida la primera PC si también va a vender)
+### 3. Cada caja (incluida la PC servidor si también va a vender)
 
 ```bash
 cd D:/CRM-POS-CR/frontend
@@ -148,18 +191,23 @@ Al abrir la app por primera vez, si no encuentra el servidor, usá el enlace
 ### 4. Lector de código de barras
 
 Conectalo por USB: los lectores estándar funcionan como un teclado (envían los dígitos y
-luego Enter), así que no necesitan instalación — simplemente escaneá con el cursor en el
-campo de búsqueda del POS y el producto se agrega solo al carrito.
+luego Enter) sin instalación — escaneá con el cursor en el campo de búsqueda del POS.
+También podés usar la cámara integrada con el botón de cámara en el POS.
+
+### 5. Impresora térmica (opcional)
+
+Compatible con cualquier impresora de 80 mm. Probada con Epson TM-T20II.
+- **Modo Electron (app instalada)**: seleccioná la impresora en Configuración → Impresora.
+- **Modo web**: al imprimir aparece un diálogo para elegir entre el diálogo del sistema o descargar el HTML.
 
 ## Uso diario
 
-1. La PC servidor debe estar encendida con el backend Java corriendo (`mvn spring-boot:run`,
-   o el `.jar` empaquetado con `java -jar target/pos-backend.jar`).
-2. En cada caja, abrí la app (`npm run dev` en `frontend/`, o el instalador `.exe` una vez
-   que se genere con `npm run dist`).
+1. La PC servidor debe estar encendida con el backend Java corriendo.
+2. En cada caja, abrí la app (`npm run dev` o el `.exe` instalado).
 3. Iniciá sesión con tu usuario y contraseña.
+4. El cajero accede al POS; supervisor y administrador tienen acceso a inventario, reportes y más.
 
-## Generar el instalador de Windows (opcional, para no depender de `npm run dev`)
+## Generar el instalador de Windows
 
 ```bash
 cd D:/CRM-POS-CR/frontend
@@ -167,43 +215,64 @@ npm run build
 npm run dist
 ```
 
-Esto genera un instalador `.exe` en `frontend/release/` que podés copiar a cada caja.
+Genera un instalador `.exe` en `frontend/release/` que podés copiar a cada caja.
 
 ## Estructura del código
 
 ```
 backend/src/main/java/com/crmsuper/pos/
-├── PosBackendApplication.java  Arranque de Spring Boot
-├── config/                     Seguridad, CORS, Jackson (JSON en snake_case)
-├── security/                   JWT: emisión, verificación, filtro de autenticación
-├── model/                      Entidades JPA (una por tabla) + enums de dominio
-├── repository/                 Interfaces Spring Data JPA
-├── dto/                        Objetos de request/response de la API
-├── service/ y service/impl/    Lógica de negocio (interfaz + implementación por área)
-├── controller/                 Controladores REST (@RestController), un archivo por área:
-│                                auth, products, customers, sales, reports, users,
-│                                turnos (cierre de caja), tax-rates, discounts
-├── exception/                  Manejo centralizado de errores → {"error": "..."}
-└── seed/                       Datos iniciales de prueba (equivalente al seed.js anterior)
+├── PosBackendApplication.java   Arranque de Spring Boot
+├── config/                      Seguridad, CORS, Jackson (JSON en snake_case)
+├── security/                    JWT: emisión, verificación, filtro de autenticación
+├── model/                       Entidades JPA + enums de dominio
+├── repository/                  Interfaces Spring Data JPA
+├── dto/                         Objetos de request/response de la API
+├── service/ y service/impl/     Lógica de negocio (interfaz + implementación)
+└── controller/                  Controladores REST por área:
+                                   auth, products, customers, sales, reports, users,
+                                   turnos, tax-rates, discounts, pedidos, proveedores,
+                                   ordenes-compra, devoluciones, health
 
 frontend/src/
-├── api/client.js          Cliente HTTP (axios) con IP de servidor configurable
-├── context/AuthContext.jsx  Sesión del usuario
-├── components/            Layout, sidebar, rutas protegidas por rol
+├── api/client.js              Cliente HTTP (axios), IP configurable, helpers de opciones
+├── context/AuthContext.jsx    Sesión del usuario (JWT, rol, nombre)
+├── utils/
+│   ├── receiptHtml.js         Generador de HTML del tiquete + barcode Code128 + diálogo de impresión
+│   ├── a11y.js                Preferencias de accesibilidad (tema, fuente, contraste, movimiento)
+│   └── format.js              Formateo de moneda y fechas en español CR
+├── components/
+│   ├── Layout.jsx             Shell principal: sidebar, topbar, AccessibilityButton, LowStockBell
+│   ├── Icons.jsx              Librería de íconos SVG (Lucide-style, sin dependencia externa)
+│   └── BarcodeScanner.jsx     Escáner por cámara (jsQR)
+├── styles/
+│   ├── variables.css          Tokens de diseño + dark mode + accesibilidad (zoom, contraste, motion)
+│   ├── base.css               Reset y estilos base
+│   ├── layout.css             Shell, sidebar, topbar, modales
+│   ├── components.css         Componentes reutilizables (cards, badges, tablas, forms, alertas)
+│   ├── pos.css                Estilos específicos del POS y métodos de pago
+│   ├── dashboard.css          Gráficos y métricas del dashboard
+│   └── utils.css              Clases utilitarias y responsive
 └── pages/
-    ├── Login.jsx
-    ├── POS.jsx             Punto de venta
-    ├── Inventory.jsx       Inventario
-    ├── Customers.jsx       Clientes / CRM
-    ├── Reports.jsx         Reportes / dashboard
-    ├── Users.jsx           Usuarios (admin)
-    └── Settings.jsx        IP del servidor
+    ├── Login.jsx              Pantalla de login (siempre en modo claro)
+    ├── POS.jsx                Punto de venta + Receipt post-venta
+    ├── Inventory.jsx          Inventario + lista de compras + QR móvil
+    ├── Customers.jsx          Clientes / CRM
+    ├── Orders.jsx             Pedidos
+    ├── PurchaseOrders.jsx     Órdenes de compra y proveedores
+    ├── Returns.jsx            Devoluciones
+    ├── SalesHistory.jsx       Historial de ventas + reimprimir + anular
+    ├── CashRegister.jsx       Cierre de caja / arqueo
+    ├── Reports.jsx            Reportes y dashboard
+    ├── Promotions.jsx         Promociones
+    ├── TaxDiscounts.jsx       IVA y descuentos
+    ├── Users.jsx              Usuarios (administrador)
+    ├── MobileAccess.jsx       Acceso móvil / QR
+    └── Settings.jsx           Configuración de tiquete, impresora y servidor
 ```
 
 ## Próximos pasos sugeridos
 
-- Definir el rumbo del frontend (mantenerlo como está, o migrarlo también).
-- Conectar facturación electrónica real con Hacienda (certificado + ATV).
-- Impresión directa a impresora térmica de tiquetes (hoy el tiquete se muestra en pantalla).
+- Conectar facturación electrónica real con Hacienda (certificado .p12 + ATV + XML v4.3).
 - Respaldo automático de la base de datos MySQL (`mysqldump` programado, copiado a USB o la nube).
-- Empaquetar el backend como servicio de Windows para que arranque solo con la PC.
+- Empaquetar el backend como servicio de Windows para que arranque solo con la PC (NSSM/WinSW).
+- App móvil nativa o PWA para supervisores que necesiten ver reportes desde el teléfono.
